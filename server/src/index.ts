@@ -1,9 +1,21 @@
 import express, { Express, Request, Response } from 'express';
+import { usersTable } from './db/schema';
+import { db } from './db';
+
 
 const app: Express = express();
 const port = process.env.PORT || 3000;
 
-app.get('/', (req: Request, res: Response) => {
+app.get('/', async (req: Request, res: Response) => {
+   const user: typeof usersTable.$inferInsert = {
+    name: 'John',
+    age: 30,
+    email: 'john@example.com',
+  };
+  await db.insert(usersTable).values(user);
+  console.log('New user created!')
+  const users = await db.select().from(usersTable);
+  console.log('Getting all users from the database: ', users)
   res.send('Express + TypeScript Server');
 });
 
