@@ -2,6 +2,8 @@ import express, { Express, Request, Response } from 'express';
 import { usersTable } from './db/schema';
 import { db } from './db';
 
+import dotenv from "dotenv";
+dotenv.config();
 
 const app: Express = express();
 const port = process.env.PORT || 3000;
