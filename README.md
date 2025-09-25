@@ -6,6 +6,7 @@ QuizForge is an intelligent, AI-driven platform that transforms any syllabus int
 
 ## ⭐ Key Features
 
+
 * [cite_start]**📄 Syllabus to Quiz in Seconds**: Upload your syllabus in PDF or DOC format, and let our AI generate a variety of questions based on the key topics. [cite: 3]
 * [cite_start]**📚 Multiple Quiz Formats**: Engage with the material in different ways with Multiple Choice, True/False, and Short Answer questions. [cite: 21, 22, 23]
 * **🤖 AI-Powered Chat**: Have a conversation with your syllabus! [cite_start]Ask questions and get instant, context-aware answers from our integrated AI chat. [cite: 25]
