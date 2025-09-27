@@ -11,7 +11,9 @@
     "rootDir": ".",
     "outDir": "./dist",
     "jsx": "react-jsx",
-     "types": ["node","jest"],
-    "jsxImportSource": "hono/jsx"
+     "types": ["node","vitest/globals"],
+    "jsxImportSource": "hono/jsx",
+     "esModuleInterop": true,
+     "allowSyntheticDefaultImports": true
   },
 }
