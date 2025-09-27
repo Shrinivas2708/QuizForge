@@ -1,0 +1,5 @@
+name = "quizforge-server"
+main = "src/index.ts"
+compatibility_date = "2025-09-27"
+[vars]
+DATABASE_URL=postgresql://neondb_owner:npg_cOqENP4At1pj@ep-morning-queen-adwx0v14-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
