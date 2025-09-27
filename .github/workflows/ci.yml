@@ -39,25 +39,25 @@ jobs:
         run: curl -X POST ${{ secrets.VERCEL_DEPLOY_HOOK }}
 
   deploy-server:
-  needs: build-and-test
-  if: github.ref == 'refs/heads/main'
-  runs-on: ubuntu-latest
-  steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Set up pnpm
-      uses: pnpm/action-setup@v3
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v3
 
-    - name: Install dependencies
-      run: pnpm install --frozen-lockfile
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
-    - name: Set up Wrangler
-      run: pnpm dlx wrangler --version
+      - name: Set up Wrangler
+        run: pnpm dlx wrangler --version
 
-    - name: Deploy to existing Worker
-      run: pnpm dlx wrangler deploy --minify --env production
-      working-directory: server
-      env:
-        CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
-        CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      - name: Deploy to existing Worker
+        run: pnpm dlx wrangler deploy --minify --env production
+        working-directory: server
+        env:
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
