@@ -5,24 +5,24 @@ import { AppEnv } from "./types";
 import userRoutes from "./routes/user.routes";
 import { cors } from "hono/cors";
 
-// The .basePath("/api") has been removed from this line
 const app = new Hono<AppEnv>();
 app.use(
   "*",
   cors({
     origin: (origin) => {
       const allowed = [
-        "http://127.0.0.1:5173",  
+        "http://127.0.0.1:5173",
         "http://localhost:3000",
-        "https://quizforge.shriii.xyz", 
+        "https://quizforge.shriii.xyz",
       ];
-      return allowed.includes(origin ?? "") ? origin : "";
+      return allowed.includes(origin ?? "") ? origin : undefined;
     },
-    credentials: true, 
+    credentials: true,
   })
 );
+
 app.get("/", (c) => {
-  return c.text("Welcome to QuizForge API Server!!");
+  return c.json({ message: "Welcome to QuizForge API Server!!" });
 });
 
 const authApp = new Hono<AppEnv>();
@@ -30,8 +30,7 @@ const authApp = new Hono<AppEnv>();
 authApp.all("*", (c) => {
   const db = getDb(c.env.DATABASE_URL);
   const auth = createAuth(c.env, db);
-  // console.log(auth.api);
-  
+
   return auth.handler(c.req.raw);
 });
 

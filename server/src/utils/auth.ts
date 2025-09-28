@@ -75,8 +75,8 @@ export const createAuth = (env: EnvBindings, db: DbInstance) => {
       "https://quizforge.shriii.xyz",
     ],
     cookie: {
-      domain: env.IS_PROD ? ".shriii.xyz" : "127.0.0.1",
-      secure: env.IS_PROD, // must be true in prod
+      domain: env.IS_PROD ? ".shriii.xyz" : undefined,
+      secure: env.IS_PROD,
       httpOnly: true,
       sameSite: "none",
     },

@@ -1,28 +1,24 @@
-// src/db/schema.ts
 import { sql } from "drizzle-orm";
 import {
   pgTable,
   varchar,
-  boolean, // Make sure boolean is imported
+  boolean, 
   timestamp,
   text,
-  primaryKey,
 } from "drizzle-orm/pg-core";
 
-// Users table with the missing emailVerified field
 export const usersTable = pgTable("users", {
   id: text("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
   email: varchar("email", { length: 255 }).notNull().unique(),
-  emailVerified: boolean("email_verified").default(false), // Added this required field
+  emailVerified: boolean("email_verified").default(false), 
   name: varchar("name", { length: 255 }),
   image: text("image"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Accounts table (no changes needed)
 export const accountsTable = pgTable("accounts", {
   id: text("id")
     .primaryKey()
@@ -43,7 +39,6 @@ export const accountsTable = pgTable("accounts", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Sessions table (no changes needed)
 export const sessionsTable = pgTable("sessions", {
   id: text("id")
     .primaryKey()
