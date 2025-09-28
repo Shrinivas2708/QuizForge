@@ -1,37 +1,61 @@
-import { describe, it, expect, beforeAll } from "vitest";
+// server/__tests__/auth.test.ts
+
+import { describe, it, expect, vi } from "vitest";
 import app from "../src/index";
 
-// Mock getDb to avoid real DB calls
-import { getDb } from "../src/db";
+// Define an interface for the expected response
+interface RedirectResponse {
+  redirectUrl: string;
+}
+
+// Mock the getDb and createAuth functions to isolate the tests
 vi.mock("../src/db", () => ({
-  getDb: () => ({
-    select: () => ({
-      from: () => [
-        { id: 1, name: "Alice", age: 30, email: "a@example.com" },
-      ],
-    }),
+  getDb: vi.fn(),
+}));
+
+vi.mock("../src/utils/auth", () => ({
+  createAuth: () => ({
+    handler: async (req: Request) => {
+      if (req.url.endsWith("/auth/sign-in/social")) {
+        return new Response(JSON.stringify({ redirectUrl: "https://accounts.google.com/o/oauth2/v2/auth" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      return new Response("Unauthorized", { status: 401 });
+    },
+    api: {
+      getSession: async ({ headers }: { headers: Headers }) => {
+        if (headers.get("Authorization") === "Bearer valid-token") {
+          return { user: { id: "1", email: "test@example.com", name: "Test User" } };
+        }
+        return null;
+      },
+    },
   }),
 }));
 
-// Create a fake env
 const fakeEnv = {
   DATABASE_URL: "postgres://fake",
+  BETTER_AUTH_SECRET: "secret",
+  BETTER_AUTH_URL: "http://localhost:8787",
+  GOOGLE_CLIENT_ID: "google-client-id",
+  GOOGLE_CLIENT_SECRET: "google-client-secret",
+  FRONTEND_URL: "http://localhost:3000",
 };
 
-describe("Hono Worker routes", () => {
-  it("GET / returns Hello Hono!", async () => {
-    const res = await app.fetch(new Request("http://localhost/"), { env: fakeEnv });
-    const text = await res.text();
-    expect(res.status).toBe(200);
-    expect(text).toBe("Hello Hono!");
-  });
+describe("Authentication routes", () => {
+  it("POST /auth/sign-in/social should return a redirect URL for Google", async () => {
+    const request = new Request("http://localhost/auth/sign-in/social", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider: "google" }),
+    });
 
-  it("GET /users returns mocked users", async () => {
-    const res = await app.fetch(new Request("http://localhost/users"), { env: fakeEnv });
-    const json = await res.json();
+    const res = await app.fetch(request, fakeEnv);
+    const data = (await res.json()) as RedirectResponse; // Type assertion
+
     expect(res.status).toBe(200);
-    expect(json).toEqual([
-      { id: 1, name: "Alice", age: 30, email: "a@example.com" },
-    ]);
+    expect(data.redirectUrl).toBe("https://accounts.google.com/o/oauth2/v2/auth");
   });
 });
