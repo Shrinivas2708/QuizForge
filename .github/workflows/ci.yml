@@ -56,7 +56,8 @@ jobs:
         run: pnpm dlx wrangler --version
 
       - name: Deploy to existing Worker
-        run: pnpm dlx wrangler deploy --minify --env production
+        run: pnpm dlx wrangler deploy --minify
+        
         working-directory: server
         env:
           CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
