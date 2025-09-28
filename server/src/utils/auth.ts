@@ -69,6 +69,11 @@ export const createAuth = (env: EnvBindings, db: DbInstance) => {
         };
       },
     },
-    trustedOrigins: ["http://localhost:3000", "https://quizforge.shriii.xyz"],
+    trustedOrigins: [
+  "http://localhost:3000",
+  "https://quizforge.shriii.xyz",
+  "http://localhost:5173"
+]
+
   });
 };
