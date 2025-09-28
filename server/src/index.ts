@@ -7,7 +7,20 @@ import { cors } from "hono/cors";
 
 // The .basePath("/api") has been removed from this line
 const app = new Hono<AppEnv>();
-app.use(cors({origin:"*"}))
+app.use(
+  "*",
+  cors({
+    origin: (origin) => {
+      const allowed = [
+        "http://127.0.0.1:5173",  
+        "http://localhost:3000",
+        "https://quizforge.shriii.xyz", 
+      ];
+      return allowed.includes(origin ?? "") ? origin : "";
+    },
+    credentials: true, 
+  })
+);
 app.get("/", (c) => {
   return c.text("Welcome to QuizForge API Server!!");
 });

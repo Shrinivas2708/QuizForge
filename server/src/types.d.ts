@@ -9,6 +9,7 @@ export type AppEnv = {
     GOOGLE_CLIENT_ID: string;
     GOOGLE_CLIENT_SECRET: string;
     FRONTEND_URL: string;
+    IS_PROD : boolean
   };
 };
 export type EnvBindings = {
@@ -17,4 +18,5 @@ export type EnvBindings = {
   GOOGLE_CLIENT_ID: string;
   GOOGLE_CLIENT_SECRET: string;
   FRONTEND_URL: string;
+  IS_PROD : boolean
 };
