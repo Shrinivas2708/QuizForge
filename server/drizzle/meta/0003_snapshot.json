@@ -1,6 +1,6 @@
 {
-  "id": "13c4f25e-c31e-49f7-9f5c-2255d057b72c",
-  "prevId": "00000000-0000-0000-0000-000000000000",
+  "id": "752686c0-0354-4fa4-92e6-127621ec748e",
+  "prevId": "fed7114b-710a-4954-9eca-0ed994b1e008",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -10,15 +10,16 @@
       "columns": {
         "id": {
           "name": "id",
-          "type": "serial",
+          "type": "text",
           "primaryKey": true,
-          "notNull": true
+          "notNull": true,
+          "default": "gen_random_uuid()"
         },
         "user_id": {
           "name": "user_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "provider_id": {
           "name": "provider_id",
@@ -55,6 +56,20 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
         }
       },
       "indexes": {},
@@ -85,15 +100,16 @@
       "columns": {
         "id": {
           "name": "id",
-          "type": "serial",
+          "type": "text",
           "primaryKey": true,
-          "notNull": true
+          "notNull": true,
+          "default": "gen_random_uuid()"
         },
         "user_id": {
           "name": "user_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "token": {
           "name": "token",
@@ -120,6 +136,18 @@
           "primaryKey": false,
           "notNull": false,
           "default": "now()"
+        },
+        "ip_address": {
+          "name": "ip_address",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "user_agent": {
+          "name": "user_agent",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {},
