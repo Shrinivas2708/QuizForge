@@ -11,9 +11,10 @@
     "rootDir": ".",
     "outDir": "./dist",
     "jsx": "react-jsx",
-     "types": ["node","vitest/globals"],
+     "types": ["node"],
     "jsxImportSource": "hono/jsx",
      "esModuleInterop": true,
      "allowSyntheticDefaultImports": true
   },
+  "include": ["vitest.config.ts"]
 }
