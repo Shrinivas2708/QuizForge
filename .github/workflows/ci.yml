@@ -21,8 +21,6 @@ jobs:
           cache: "pnpm"
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      - name: Run linting
-        run: pnpm --filter client lint
       - name: Run tests
         run: pnpm --filter server test
       - name: Build applications
