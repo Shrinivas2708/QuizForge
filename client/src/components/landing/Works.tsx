@@ -1,4 +1,4 @@
-import { FileIcon, Settings, Trophy } from "lucide-react"
+import { FileIcon, Settings, Trophy } from 'lucide-react'
 
 const WorkData = [
   {
@@ -14,34 +14,33 @@ const WorkData = [
     desc: 'Choose your format multiple choice, true/false, or short answer. Set the difficulty and length',
   },
   {
-   
     name: 'Conquer',
     icon: <Trophy size={30} />,
     header: 'Start Learning',
     desc: 'Take your custom quiz, track your progress with detailed analytics, and master your material.',
   },
 ]
+
 export default function Works() {
   return (
-    <section className="flex flex-col justify-center items-center gap-7 mt-[5rem] font-geist pb-3">
-      <div className="font-bold text-4xl">
+    <section className="flex flex-col justify-center items-center gap-10 mt-20 font-geist pb-3 px-4">
+      <div className="font-bold text-4xl text-center">
         How It <span className="text-primary">Works?</span>
       </div>
-      <div className="space-y-6">
+      <div className="space-y-8 max-w-2xl w-full">
         {WorkData.map((v, i) => {
           return (
-            <div key={i} className="   flex space-x-6">
-              <div className=' flex items-center'>
-                <div className="flex flex-col items-center bg-primary rounded-full w-[6rem] h-[6rem] justify-center font-bold ">
-               <div className=" text-white dark:text-foreground">
-                 {v.icon}
-               </div>
+            <div
+              key={i}
+              className="flex flex-col md:flex-row items-center gap-6 text-center md:text-left"
+            >
+              <div className="flex-shrink-0 flex flex-col items-center justify-center bg-primary rounded-full w-28 h-28 font-bold text-white dark:text-foreground">
+                <div className="text-white dark:text-foreground">{v.icon}</div>
                 <p className="text-white dark:text-foreground">{v.name}</p>
               </div>
-              </div>
-              <div className=" space-y-2 p-5 w-full flex justify-center flex-col border rounded-2xl">
+              <div className="w-full">
                 <p className="text-2xl font-bold">{v.header}</p>
-                <p className='text-base'>{v.desc}</p>
+                <p className="text-base text-muted-foreground">{v.desc}</p>
               </div>
             </div>
           )

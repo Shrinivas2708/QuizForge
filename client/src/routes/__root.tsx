@@ -7,7 +7,7 @@ import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 export const Route = createRootRoute({
   component: () => (
     <>
-      <div className="flex-1 flex flex-col max-w-screen-2xl mx-auto">
+      <div className="flex-1 flex flex-col min-h-screen max-w-screen-2xl mx-auto w-full">
         
         <Nav/>
         <Outlet />

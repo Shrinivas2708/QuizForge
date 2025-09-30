@@ -10,7 +10,7 @@ export const Route = createFileRoute('/')({
 
 function Landing() {
   return (
-    <section className='relative'>
+    <section className='relative w-full min-h-screen'>
     <ThemeButton />
       <Home />
       {/* Future add Social Proff */}
