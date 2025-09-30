@@ -1,6 +1,5 @@
 import Footer from '@/components/Footer'
 import Nav from '@/components/Nav'
-import { ThemeButton } from '@/components/toggle-theme'
 import { Outlet, createRootRoute } from '@tanstack/react-router'
 
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
