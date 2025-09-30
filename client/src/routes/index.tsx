@@ -1,16 +1,25 @@
+import Feature from '@/components/landing/Feature'
+import FinalCTA from '@/components/landing/FinalCTA'
+import Home from '@/components/landing/Home'
+import Works from '@/components/landing/Works'
 import { ThemeButton } from '@/components/toggle-theme'
-import { Button } from '@/components/ui/button'
 import { createFileRoute } from '@tanstack/react-router'
 export const Route = createFileRoute('/')({
-  component: App,
+  component: Landing,
 })
 
-function App() {
-  return <div className='w-full border p-3 flex justify-between'>
-    <Button>
-      Click
-    </Button>
-    <ThemeButton/>
-    
-  </div>
+function Landing() {
+  return (
+    <section className='relative'>
+    <ThemeButton />
+      <Home />
+      {/* Future add Social Proff */}
+      <Works />
+      <Feature />
+      <FinalCTA/>
+    </section>
+  )
 }
+
+
+
