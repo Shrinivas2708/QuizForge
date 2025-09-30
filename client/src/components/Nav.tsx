@@ -1,6 +1,7 @@
 
 import { Link } from "@tanstack/react-router";
 import { Button } from "./ui/button";
+import { ThemeButton } from "./toggle-theme";
 
 export default function Nav() {
   return (
@@ -11,6 +12,7 @@ export default function Nav() {
       </p>
       </Link>
       <div className="flex gap-3">
+        <ThemeButton/>
         <Link to="/login">
         <Button variant={'outline'} className="cursor-pointer">Login</Button>
         </Link>
