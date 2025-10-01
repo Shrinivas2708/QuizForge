@@ -3,7 +3,6 @@ import { getDb } from "../db";
 import { createAuth } from "../utils/auth";
 import type { AppEnv } from "../types";
 
-// Create a new Hono app for this specific route
 const userRoutes = new Hono<AppEnv>();
 
 userRoutes.get("/me", async (c) => {

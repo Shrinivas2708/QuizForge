@@ -2,8 +2,8 @@ import { Hono } from "hono";
 import { getDb } from "./db";
 import { createAuth } from "./utils/auth";
 import { AppEnv } from "./types";
-import userRoutes from "./routes/user.routes";
 import { cors } from "hono/cors";
+import  {userRoutes,quizRoutes,roomRoutes,sourceRoutes,submissionRoutes,chatRoutes} from "./routes"
 
 const app = new Hono<AppEnv>();
 app.use(
@@ -30,11 +30,15 @@ const authApp = new Hono<AppEnv>();
 authApp.all("*", (c) => {
   const db = getDb(c.env.DATABASE_URL);
   const auth = createAuth(c.env, db);
-
+  console.log(auth.api)
   return auth.handler(c.req.raw);
 });
-
 app.route("/auth", authApp);
 app.route("/users", userRoutes);
-
+app.route("/sources", sourceRoutes);
+app.route("/quizzes", quizRoutes);
+app.route("/rooms", roomRoutes);
+app.route("/submissions", submissionRoutes);
+app.route("/chat", chatRoutes);
 export default app;
+export type AppType = typeof app;

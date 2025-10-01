@@ -10,13 +10,14 @@ import {
   primaryKey,
   pgEnum,
 } from "drizzle-orm/pg-core";
+import z from "zod";
 
 /* =========================================
    GROUP 1: AUTHENTICATION
    Handles user accounts, social logins, and active sessions.
 ========================================= */
 
-
+// This is the table where we store the data of the user
 export const usersTable = pgTable("users", {
   id: text("id")
     .primaryKey()
@@ -28,7 +29,7 @@ export const usersTable = pgTable("users", {
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
-
+// here we store the accounts of the users like which provider and tokens passwords etc so that we wont over fetch data from the base user table
 export const accountsTable = pgTable("accounts", {
   id: text("id")
     .primaryKey()
@@ -48,7 +49,7 @@ export const accountsTable = pgTable("accounts", {
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
-
+// here we store the sessions of the users like if they are logged in or not and for how long
 export const sessionsTable = pgTable("sessions", {
   id: text("id")
     .primaryKey()
@@ -63,6 +64,7 @@ export const sessionsTable = pgTable("sessions", {
   ipAddress: varchar("ip_address", { length: 255 }),
   userAgent: text("user_agent"),
 });
+// this table is used to store the verification tokens for email verification and password reset etc
 export const verificationTokensTable = pgTable("verificationToken", {
   id: text("id")
     .primaryKey()
@@ -81,7 +83,7 @@ export const verificationTokensTable = pgTable("verificationToken", {
 
 export const sourceTypeEnum = pgEnum('source_type', ['document', 'text_topic', 'chat_history']);
 export const sourceStatusEnum = pgEnum('source_status', ['pending', 'processing', 'ready', 'error']);
-
+// here we store the data abt the sources such as the link where it is stored and the raw content status of the processing the files
 export const sourcesTable = pgTable("sources", {
     id: text("id").primaryKey().default(sql`gen_random_uuid()`),
     userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
@@ -92,6 +94,7 @@ export const sourcesTable = pgTable("sources", {
     status: sourceStatusEnum("status").notNull().default("pending"),
     createdAt: timestamp("created_at").defaultNow(),
 });
+// here we store the data we extracted from the sources 
 export const documentsTable = pgTable("documents", {
   id: text("id").primaryKey().default(sql`gen_random_uuid()`),
   sourceId: text("source_id").notNull().references(() => sourcesTable.id, { onDelete: "cascade" }),
@@ -100,12 +103,12 @@ export const documentsTable = pgTable("documents", {
   pineconeId: text("pinecone_id").unique(), // links to Pinecone vector ID
   createdAt: timestamp("created_at").defaultNow(),
 });
-
+// here we store the quizzess data whos the owner , source information chat's session id etc
 export const quizzesTable = pgTable("quizzes", {
   id: text("id").primaryKey().default(sql`gen_random_uuid()`),
   ownerId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
-  sourceId: text("source_id").notNull().references(() => sourcesTable.id, { onDelete: "cascade" }),
-  chatSessionId: text("chat_session_id").references(() => chatSessionsTable.id), // NEW
+  // A quiz is generated from one source, so this remains one-to-one
+  sourceId: text("source_id").notNull().references(() => sourcesTable.id, { onDelete: "cascade" }), 
   title: varchar("title", { length: 255 }).notNull(),
   config: jsonb("config"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -113,15 +116,18 @@ export const quizzesTable = pgTable("quizzes", {
   parentQuizId: text("parent_quiz_id")
 });
 
-
+export const questionDataSchema = z.object({
+  options: z.array(z.string()).optional(),
+  correctAnswer: z.string(),
+});
 export const questionTypeEnum = pgEnum('question_type', ['multiple_choice', 'true_false', 'short_answer']);
-
+// here we store the questions the type of the questions id of the quiz and  the data 
 export const questionsTable = pgTable("questions", {
     id: text("id").primaryKey().default(sql`gen_random_uuid()`),
     quizId: text("quiz_id").notNull().references(() => quizzesTable.id, { onDelete: "cascade" }),
     questionType: questionTypeEnum("question_type").notNull(),
     questionText: text("question_text").notNull(),
-    data: jsonb("data").notNull(), // For options and correct answer
+    data: jsonb("data").$type<z.infer<typeof questionDataSchema>>().notNull(),
     feedback: text("feedback"), // AI-generated explanation
 });
 
@@ -132,11 +138,12 @@ export const questionsTable = pgTable("questions", {
 
 export const participantInfoEnum = pgEnum('participant_info', ['name', 'email']);
 export const proctoringLevelEnum = pgEnum('proctoring_level', ['basic', 'strict']);
-
+// here we store abt the rooms like te code participants time limits etc
 export const roomsTable = pgTable("rooms", {
     id: text("id").primaryKey().references(() => quizzesTable.id, { onDelete: "cascade" }),
     shareableCode: varchar("shareable_code", { length: 10 }).notNull().unique(),
-    participantInfoRequired: participantInfoEnum("participant_info").notNull().default("name"),
+    // MODIFIED: From enum to a flexible array of strings
+    participantFields: jsonb("participant_fields").$type<string[]>().notNull().default( ['name']),
     timeLimitSeconds: integer("time_limit_seconds"),
     proctoringLevel: proctoringLevelEnum("proctoring_level").notNull().default("basic"),
     isOpen: boolean("is_open").default(true),
@@ -145,7 +152,8 @@ export const roomsTable = pgTable("rooms", {
 export const participantsTable = pgTable("participants", {
     id: text("id").primaryKey().default(sql`gen_random_uuid()`),
     roomId: text("room_id").notNull().references(() => roomsTable.id, { onDelete: "cascade" }),
-    identifier: varchar("identifier", { length: 255 }).notNull(), // The name or email
+    // MODIFIED: From a single identifier to a flexible JSON object
+    details: jsonb("details").$type<Record<string, string>>().notNull().default({}),
     joinedAt: timestamp("joined_at").defaultNow(),
 });
 
@@ -153,7 +161,7 @@ export const participantsTable = pgTable("participants", {
    GROUP 4: SUBMISSIONS & PROCTORING
    Tracks quiz attempts, results, and anti-cheat events.
 ========================================= */
-
+// bere we store the submissions data of a participant from the rooms and the score etc
 export const submissionsTable = pgTable("submissions", {
   id: text("id").primaryKey().default(sql`gen_random_uuid()`),
   participantId: text("participant_id").notNull().references(() => participantsTable.id, { onDelete: "cascade" }),
@@ -166,7 +174,7 @@ export const submissionsTable = pgTable("submissions", {
   disqualified: boolean("disqualified").default(false),
 });
 
-
+// here we score the answers from the submissions and for the questions and store if the ans is correct or not 
 export const answersTable = pgTable("answers", {
     submissionId: text("submission_id").notNull().references(() => submissionsTable.id, { onDelete: "cascade" }),
     questionId: text("question_id").notNull().references(() => questionsTable.id, { onDelete: "cascade" }),
@@ -177,7 +185,7 @@ export const answersTable = pgTable("answers", {
 }));
 
 export const proctoringEventTypeEnum = pgEnum('proctoring_event_type', ['tab_switch', 'copy_paste', 'fullscreen_exit']);
-
+// here we describe the proctoring events data for saftey
 export const proctoringEventsTable = pgTable("proctoring_events", {
   id: text("id").primaryKey().default(sql`gen_random_uuid()`),
   submissionId: text("submission_id").notNull().references(() => submissionsTable.id, { onDelete: "cascade" }),
@@ -191,14 +199,23 @@ export const proctoringEventsTable = pgTable("proctoring_events", {
    GROUP 5: CHAT HISTORY
    Manages conversational history for the AI chat feature.
 ========================================= */
-
+// here we store the session of a chat for the AI history
 export const chatSessionsTable = pgTable("chat_sessions", {
     id: text("id").primaryKey().default(sql`gen_random_uuid()`),
     userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
-    sourceId: text("source_id").notNull().references(() => sourcesTable.id, { onDelete: "cascade" }),
+    // REMOVED: sourceId no longer belongs here
+    // sourceId: text("source_id").notNull().references(() => sourcesTable.id, { onDelete: "cascade" }),
     title: varchar("title", { length: 255 }).notNull().default("New Chat"),
     createdAt: timestamp("created_at").defaultNow(),
 });
+
+// NEW: This table links multiple sources to a single chat session
+export const chatSessionSourcesTable = pgTable("chat_session_sources", {
+    sessionId: text("session_id").notNull().references(() => chatSessionsTable.id, { onDelete: "cascade" }),
+    sourceId: text("source_id").notNull().references(() => sourcesTable.id, { onDelete: "cascade" }),
+}, (table) => ({
+    pk: primaryKey({ columns: [table.sessionId, table.sourceId] }),
+}));
 
 export const messageRoleEnum = pgEnum('message_role', ['user', 'assistant']);
 
@@ -210,7 +227,7 @@ export const chatMessagesTable = pgTable("chat_messages", {
     createdAt: timestamp("created_at").defaultNow(),
 });
 export const feedbackTypeEnum = pgEnum('feedback_type', ['like', 'dislike']);
-
+// here we describe if the user is satisfied with response from the LLM to refine prompt more with the feedback
 export const feedbackTable = pgTable("feedback", {
   id: text("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
