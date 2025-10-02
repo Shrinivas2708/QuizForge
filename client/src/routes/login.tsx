@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -12,14 +12,67 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
+import { useForm } from '@tanstack/react-form'
+import apiClient from '@/lib/axios'
+import z from "zod"
+import { AxiosError } from 'axios'
 
 export const Route = createFileRoute('/login')({
   component: Login,
 })
 
+interface User {
+  email: string
+  password: string
+}
+
+const defaultUser: User = {
+  email: '',
+  password: '',
+}
+
 function Login() {
+  const navigate = useNavigate()
+  const form = useForm({
+    defaultValues: {
+      email: '',
+      password: '',
+    },
+    onSubmit: async ({ value }) => {
+      try {
+        const res = await apiClient.post('/auth/sign-in/email', value)
+        
+        if (res.data.user) {
+          toast.success('Logged in successfully!')
+          navigate({ to: '/' })
+        } else {
+          toast.error('Login failed. Please check your credentials.')
+        }
+      } catch (error) {
+        if(error instanceof AxiosError) {
+         return toast.error(error.response?.data.message)
+        }
+        console.error('Login error:', error)
+        toast.error('Login failed. Please check your credentials.')
+      }
+    },
+  })
+
+  const handleGoogleLogin = async () => {
+    try {
+      const res = await apiClient.post('/auth/sign-in/social', {
+        provider: 'google',
+      })
+      if (res.data.url) {
+        window.location.href = res.data.url
+      }
+    } catch (error) {
+      console.error('Google login failed:', error)
+      toast.error('Could not initiate Google login.')
+    }
+  }
+
   return (
-    // The change is in this line 👇
     <div className="flex-1 grid place-items-center p-4">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
@@ -28,42 +81,121 @@ function Login() {
             Enter your email below to login to your account
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <form>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            void form.handleSubmit()
+          }}
+        >
+          <CardContent>
             <div className="flex flex-col gap-6">
-              <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="m@example.com"
-                  required
-                />
-              </div>
-              <div className="grid gap-2">
-                <div className="flex items-center">
-                  <Label htmlFor="password">Password</Label>
-                  
-                </div>
-                <Input id="password" type="password" placeholder='**********' required />
-              </div>
+              <form.Field
+                name="email"
+                validators={{
+                  onBlur: ({ value }) => {
+                    const result = z
+                      .string()
+                      .min(1, 'Email is required')
+                      .email('Must be a valid email')
+                      .safeParse(value)
+                    
+                    if (!result.success) {
+                      return result.error.errors[0].message
+                    }
+                    return undefined
+                  },
+                }}
+                children={(field) => (
+                  <div className="grid gap-2">
+                    <Label htmlFor={field.name}>Email</Label>
+                    <Input
+                      id={field.name}
+                      name={field.name}
+                      value={field.state.value}
+                      onBlur={field.handleBlur}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                      type="email"
+                      placeholder="m@example.com"
+                    />
+                    {field.state.meta.errors.length > 0 ? (
+                      <em role="alert" className="text-sm text-destructive">
+                        {field.state.meta.errors.join(', ')}
+                      </em>
+                    ) : null}
+                  </div>
+                )}
+              />
+              <form.Field
+                name="password"
+                validators={{
+                  onBlur: ({ value }) => {
+                    const result = z
+                      .string()
+                      .min(1, 'Password is required')
+                      .safeParse(value)
+                    
+                    if (!result.success) {
+                      return result.error.errors[0].message
+                    }
+                    return undefined
+                  },
+                }}
+                children={(field) => (
+                  <div className="grid gap-2">
+                    <Label htmlFor={field.name}>Password</Label>
+                    <Input
+                      id={field.name}
+                      name={field.name}
+                      value={field.state.value}
+                      onBlur={field.handleBlur}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                      type="password"
+                      placeholder="**********"
+                    />
+                    {field.state.meta.errors.length > 0 ? (
+                      <em role="alert" className="text-sm text-destructive">
+                        {field.state.meta.errors.join(', ')}
+                      </em>
+                    ) : null}
+                  </div>
+                )}
+              />
             </div>
-          </form>
-        </CardContent>
-        <CardFooter className="flex-col gap-3">
-          <Button type="submit" className="w-full" onClick={()=>toast.success("logged in!")}>
-            Login
-          </Button>
-          <Button variant="outline" className="w-full">
-            Login with Google
-          </Button>
-          <div className="mt-4 text-center text-sm">
-            Don't have an account?{' '}
-            <Link to="/signup" className="underline">
-              Sign up
-            </Link>
-          </div>
-        </CardFooter>
+          </CardContent>
+          <CardFooter className="flex-col gap-3 mt-5">
+            <form.Subscribe
+              selector={(state) => [state.canSubmit, state.isSubmitting]}
+              children={([canSubmit, isSubmitting]) => (
+                <Button 
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    form.handleSubmit()
+                  }}
+                  className="w-full" 
+                  disabled={!canSubmit || isSubmitting}
+                >
+                  {isSubmitting ? 'Logging in...' : 'Login'}
+                </Button>
+              )}
+            />
+            <Button
+              variant="outline"
+              className="w-full"
+              type="button"
+              onClick={handleGoogleLogin}
+            >
+              Login with Google
+            </Button>
+            <div className="mt-4 text-center text-sm">
+              Don't have an account?{' '}
+              <Link to="/signup" className="underline">
+                Sign up
+              </Link>
+            </div>
+          </CardFooter>
+        </form>
       </Card>
     </div>
   )
