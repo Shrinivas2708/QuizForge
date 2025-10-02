@@ -8,6 +8,7 @@ import reportWebVitals from './reportWebVitals.ts'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { ThemeProvider } from './components/providers/theme-provider.tsx'
+import { AuthProvider } from './context/AuthContext.tsx'
 const queryClient = new QueryClient()
 
 const router = createRouter({
@@ -33,7 +34,9 @@ if (rootElement && !rootElement.innerHTML) {
   root.render(
     <ThemeProvider defaultTheme="dark" storageKey="ui-theme">
       <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
+        <AuthProvider>
+          <RouterProvider router={router} />
+        </AuthProvider>
         <ReactQueryDevtools initialIsOpen={false} />
       </QueryClientProvider>
     </ThemeProvider>,

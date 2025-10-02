@@ -58,9 +58,7 @@ export const createAuth = (env: EnvBindings, db: DbInstance) => {
             });
           }
           console.log("Returning redirect to dashboard for google login");
-          return {
-            redirect: `${env.FRONTEND_URL}/dashboard`,
-          };
+          return `${env.FRONTEND_URL}/auth-callback`;
         }
 
         console.log("Falling back to default / redirect");
@@ -74,12 +72,13 @@ export const createAuth = (env: EnvBindings, db: DbInstance) => {
       "http://127.0.0.1:3000",
       "http://localhost:3000",
       "https://quizforge.shriii.xyz",
+      "http://localhost:5173"
     ],
     cookie: {
-      domain: env.IS_PROD ? ".shriii.xyz" : undefined,
-      secure: env.IS_PROD,
+      domain: env.IS_PROD ? ".shriii.xyz" : undefined, // ✅ Don't set domain in dev
+      secure: env.IS_PROD, // ✅ Only secure in prod
       httpOnly: true,
-      sameSite: "none",
+      sameSite: env.IS_PROD ? "none" : "lax", // ✅ Use 'lax' in development
     },
   });
 };

@@ -44,12 +44,35 @@ authApp.all("*", async (c, next) => {
   const origin = c.req.header("Origin") || "";
   const headers: Record<string, string> = {};
 
-  if (allowedOrigins.includes(origin)) {
-    headers["Access-Control-Allow-Origin"] = origin;
+  const referer = c.req.header("Referer") || "";
+  let allowedOrigin = "";
+
+  if (origin && allowedOrigins.includes(origin)) {
+    allowedOrigin = origin;
+  } else if (referer) {
+    try {
+      const refererUrl = new URL(referer);
+      const refererOrigin = `${refererUrl.protocol}//${refererUrl.host}`;
+      if (allowedOrigins.includes(refererOrigin)) {
+        allowedOrigin = refererOrigin;
+      }
+    } catch (e) {
+      console.error("Invalid referer URL:", e);
+    }
+  }
+  
+  // ✅ CRITICAL FIX: For OAuth callback routes, always set CORS to localhost:3000 in dev
+  const isProd = c.env.IS_PROD === true || c.env.IS_PROD === "true";
+  if (!isProd && !allowedOrigin && c.req.path.includes("/callback/")) {
+    allowedOrigin = "http://localhost:3000";
+    console.log("🔧 Setting default CORS origin for callback:", allowedOrigin);
+  }
+
+  if (allowedOrigin) {
+    headers["Access-Control-Allow-Origin"] = allowedOrigin;
     headers["Access-Control-Allow-Credentials"] = "true";
     headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS";
-    headers["Access-Control-Allow-Headers"] =
-      "Content-Type, Authorization";
+    headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization";
   }
 
   if (c.req.method === "OPTIONS") {
@@ -59,21 +82,64 @@ authApp.all("*", async (c, next) => {
     });
   }
 
-  // Call BetterAuth handler
   const db = getDb(c.env.DATABASE_URL);
   const auth = createAuth(c.env, db);
-
   const res = await auth.handler(c.req.raw);
 
-  // Inject headers into the response returned by BetterAuth
+  const setCookieHeaders = res.headers.getSetCookie();
+
+  console.log("=== AUTH RESPONSE DEBUG ===");
+  console.log("Path:", c.req.path);
+  console.log("Set-Cookie headers BEFORE:", setCookieHeaders);
+  console.log("Origin:", origin);
+  console.log("Referer:", referer);
+  console.log("Allowed Origin:", allowedOrigin);
+  console.log("Will add CORS headers:", Object.keys(headers).length > 0);
+  console.log("========================");
+  
+  if (!isProd && setCookieHeaders.length > 0) {
+    console.log("🔧 Modifying cookies for development...");
+    
+    const modifiedResponse = new Response(res.body, {
+      status: res.status,
+      statusText: res.statusText,
+      headers: new Headers(res.headers),
+    });
+    
+    modifiedResponse.headers.delete("Set-Cookie");
+    
+    setCookieHeaders.forEach((cookie) => {
+      if (!cookie.includes("Domain=")) {
+        const parts = cookie.split(";");
+        const modifiedCookie = parts[0] + "; Domain=localhost" + cookie.substring(parts[0].length);
+        console.log("Modified cookie:", modifiedCookie);
+        modifiedResponse.headers.append("Set-Cookie", modifiedCookie);
+      } else {
+        modifiedResponse.headers.append("Set-Cookie", cookie);
+      }
+    });
+
+    console.log("=== MODIFIED Set-Cookie ===");
+    console.log(modifiedResponse.headers.getSetCookie());
+    
+    // ✅ CRITICAL: Add CORS headers to the modified response
+    for (const [key, value] of Object.entries(headers)) {
+      modifiedResponse.headers.set(key, value);
+      console.log(`Setting header: ${key} = ${value}`);
+    }
+    
+    console.log("========================");
+
+    return modifiedResponse;
+  }
+
+  // For responses without cookies, still add CORS headers
   for (const [key, value] of Object.entries(headers)) {
     res.headers.set(key, value);
   }
 
   return res;
 });
-
-
 app.route("/auth", authApp);
 // --- END: Manual CORS Handling ---
 // app.all("/auth/*", async (c) => {

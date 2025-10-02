@@ -16,23 +16,18 @@ import { useForm } from '@tanstack/react-form'
 import apiClient from '@/lib/axios'
 import z from "zod"
 import { AxiosError } from 'axios'
+import { useAuth } from '@/context/AuthContext'
+// import { CALLBACK_URL } from '@/lib/exports'
+import {  signIn } from '@/lib/auth-client'
 
 export const Route = createFileRoute('/login')({
   component: Login,
 })
 
-interface User {
-  email: string
-  password: string
-}
-
-const defaultUser: User = {
-  email: '',
-  password: '',
-}
 
 function Login() {
   const navigate = useNavigate()
+  const { setUser } = useAuth()
   const form = useForm({
     defaultValues: {
       email: '',
@@ -43,8 +38,9 @@ function Login() {
         const res = await apiClient.post('/auth/sign-in/email', value)
         
         if (res.data.user) {
+          setUser(res.data.user)
           toast.success('Logged in successfully!')
-          navigate({ to: '/' })
+          navigate({ to: '/dashboard' })
         } else {
           toast.error('Login failed. Please check your credentials.')
         }
@@ -58,19 +54,17 @@ function Login() {
     },
   })
 
-  const handleGoogleLogin = async () => {
-    try {
-      const res = await apiClient.post('/auth/sign-in/social', {
-        provider: 'google',
-      })
-      if (res.data.url) {
-        window.location.href = res.data.url
-      }
-    } catch (error) {
-      console.error('Google login failed:', error)
-      toast.error('Could not initiate Google login.')
-    }
+ const handleGoogleLogin = async () => {
+  try {
+    await signIn.social({
+      provider: 'google',
+      callbackURL: `${window.location.origin}/auth-callback`
+    });
+  } catch (error) {
+    console.error('Google login failed:', error);
+    toast.error('Could not initiate Google login.');
   }
+};
 
   return (
     <div className="flex-1 grid place-items-center p-4">

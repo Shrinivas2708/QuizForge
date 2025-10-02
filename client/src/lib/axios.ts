@@ -2,7 +2,7 @@ import axios from "axios"
 
 let BACKEND_URL;
 if(import.meta.env.VITE_ENV == "dev"){
-    BACKEND_URL = "http://127.0.0.1:8787"
+    BACKEND_URL = "http://localhost:8787"
 }else{
     BACKEND_URL = "https://api.quizforge.shriii.xyz"
 }

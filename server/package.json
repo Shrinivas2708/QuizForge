@@ -14,6 +14,7 @@
     "@langchain/core": "^0.3.78",
     "@langchain/google-genai": "^0.2.18",
     "@langchain/pinecone": "^0.2.0",
+    "@langchain/textsplitters": "^0.1.0",
     "@neondatabase/serverless": "^1.0.1",
     "@pinecone-database/pinecone": "^6.1.2",
     "bcryptjs": "^3.0.2",

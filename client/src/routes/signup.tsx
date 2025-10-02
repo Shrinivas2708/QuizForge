@@ -13,9 +13,10 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 import apiClient from '@/lib/axios'
-import { Field, useForm } from '@tanstack/react-form'
+import {  useForm } from '@tanstack/react-form'
 import { AxiosError } from 'axios'
 import z from 'zod'
+import { CALLBACK_URL } from '@/lib/exports'
 export const Route = createFileRoute('/signup')({
   component: Signup,
 })
@@ -34,7 +35,7 @@ function Signup() {
 
         if (res.data.user) {
           toast.success('Logged in successfully!')
-          navigate({ to: '/' })
+          navigate({ to: '/dashboard' })
         } else {
           toast.error('Login failed. Please check your credentials.')
         }
@@ -52,6 +53,7 @@ function Signup() {
     try {
       const res = await apiClient.post('/auth/sign-in/social', {
         provider: 'google',
+        callbackURL: CALLBACK_URL
       })
       if (res.data.url) {
         window.location.href = res.data.url
@@ -197,7 +199,7 @@ function Signup() {
             >
               Signup
             </Button>
-            <Button variant="outline" className="w-full">
+            <Button variant="outline" className="w-full" onClick={handleGoogleLogin}>
               Signup with Google
             </Button>
             <div className="mt-4 text-center text-sm">
