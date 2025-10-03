@@ -56,7 +56,7 @@ function RouteComponent() {
     getCurrentSessions()
   }, [])
   async function handleLogout() {
-    try {
+    try { 
       await authClient.signOut()
       toast.success('Signed out')
       navigate({ to: '/login' })
@@ -140,10 +140,16 @@ function RouteComponent() {
     }
   }
   async function handleSessionRevoke(id: string) {
-    const res = await authClient.revokeSession({
+
+   try {
+     const res = await authClient.revokeSession({
       token: id,
     })
+    if(id == currentSessionId){
+      window.location.reload()
+    }
     if (res.data?.status) {
+      
       setSessions(
         sessions?.filter((v) => {
           return v.token != id
@@ -151,11 +157,24 @@ function RouteComponent() {
       )
       return toast.success('Session revoked successfully')
     }
+    
     toast.error(res.error?.message)
+   } catch (error) {
+    console.log(error);
+    
+   }
   }
   async function handleSessionRevokeAll() {
     const res = await authClient.revokeOtherSessions()
     if (res.data?.status) {
+      return toast.success('Revoked all sessions successfully')
+    }
+    toast.error(res.error?.message)
+  }
+  async function RevokeAllSession() {
+   const res =  await authClient.revokeSessions()
+   if (res.data?.status) {
+    window.location.reload()
       return toast.success('Revoked all sessions successfully')
     }
     toast.error(res.error?.message)
@@ -216,9 +235,10 @@ function RouteComponent() {
             <AlertDialogCancel asChild>
               <Button variant="outline">Cancel</Button>
             </AlertDialogCancel>
-            <Button type="submit" onClick={handleLogout}>
+            <AlertDialogAction onClick={handleLogout}>
               Log out
-            </Button>
+            </AlertDialogAction>
+          
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -314,22 +334,18 @@ function RouteComponent() {
               <AlertDialogHeader>
                 <AlertDialogTitle>Confirmation</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Are you sure you want to revoke all the sessions?(except
-                  current)
+                  Are you sure you want to revoke all the sessions?
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel asChild>
                   <Button variant="outline">No</Button>
                 </AlertDialogCancel>
-                <AlertDialogAction className="text-red-400 border-red-400 bg-transparent dark:bg-transparent dark:border-red-400 dark:hover:text-red-400 dark:hover:bg-transparent cursor-pointer hover:text-red-400 hover:bg-transparent">
-                  <Button
-                    variant={'outline'}
-                    className="text-red-400 border-red-400 bg-transparent dark:bg-transparent dark:border-red-400 dark:hover:text-red-400 dark:hover:bg-transparent cursor-pointer hover:text-red-400 hover:bg-transparent"
-                    onClick={handleSessionRevokeAll}
-                  >
-                    Revoke all
-                  </Button>
+                <AlertDialogAction  onClick={handleSessionRevokeAll} className='text-red-400 border-red-400 bg-transparent dark:bg-transparent dark:border-red-400 dark:hover:text-red-400 dark:hover:bg-transparent cursor-pointer hover:text-red-400 hover:bg-transparent ring-1'>
+                  Revoke all
+                </AlertDialogAction>
+                <AlertDialogAction  onClick={RevokeAllSession} className='text-red-400 border-red-400 bg-transparent dark:bg-transparent dark:border-red-400 dark:hover:text-red-400 dark:hover:bg-transparent cursor-pointer hover:text-red-400 hover:bg-transparent ring-1'>
+                  Revoke all(including current)
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>

@@ -55,10 +55,11 @@ function Login() {
 
  const handleGoogleLogin = async () => {
   try {
-    await signIn.social({
+    const res  = await signIn.social({
       provider: 'google',
       callbackURL: CALLBACK_URL
     });
+    console.log(res)
   } catch (error) {
     console.error('Google login failed:', error);
     toast.error('Could not initiate Google login.');
