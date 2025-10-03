@@ -12,11 +12,11 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
-import apiClient from '@/lib/axios'
 import {  useForm } from '@tanstack/react-form'
 import { AxiosError } from 'axios'
 import z from 'zod'
 import { CALLBACK_URL } from '@/lib/exports'
+import { signIn, signUp } from '@/lib/auth-client'
 export const Route = createFileRoute('/signup')({
   component: Signup,
 })
@@ -31,38 +31,35 @@ function Signup() {
     },
     onSubmit: async ({ value }) => {
       try {
-        const res = await apiClient.post('/auth/sign-in/email', value)
-
-        if (res.data.user) {
-          toast.success('Logged in successfully!')
-          navigate({ to: '/dashboard' })
-        } else {
-          toast.error('Login failed. Please check your credentials.')
-        }
+        const res = await signUp.email(value)
+                
+                if (res.data?.token) {
+                  toast.success('Signed up successfully!')
+                  navigate({ to: '/dashboard' })
+                } else {
+                  toast.error(`Signup failed.${res.error?.message}`)
+                }
       } catch (error) {
         if (error instanceof AxiosError) {
           return toast.error(error.response?.data.message)
         }
-        console.error('Login error:', error)
-        toast.error('Login failed. Please check your credentials.')
+        console.error('Signup error:', error)
+        toast.error('Signup failed. Please check your credentials.')
       }
     },
   })
 
   const handleGoogleLogin = async () => {
-    try {
-      const res = await apiClient.post('/auth/sign-in/social', {
-        provider: 'google',
-        callbackURL: CALLBACK_URL
-      })
-      if (res.data.url) {
-        window.location.href = res.data.url
-      }
-    } catch (error) {
-      console.error('Google login failed:', error)
-      toast.error('Could not initiate Google login.')
-    }
+  try {
+   await signIn.social({
+      provider: 'google',
+      callbackURL: CALLBACK_URL
+    });
+  } catch (error) {
+    console.error('Google login failed:', error);
+    toast.error('Could not initiate Google login.');
   }
+};
 
   return (
     // The change is in this line 👇

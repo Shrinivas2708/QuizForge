@@ -25,7 +25,7 @@ export default function Nav() {
               navigate({to:"/dashboard"})
             }
           }
-          className="cursor-pointer"
+          className="cursor-pointer size-9"
           >
             <AvatarImage src={user.image || ''} alt={user.name} />
             <AvatarFallback>{user.name?.charAt(0)}</AvatarFallback>

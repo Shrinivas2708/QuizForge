@@ -9,4 +9,4 @@ export const authClient = createAuthClient({
     credentials:true
 });
 
-export const { signIn, signOut, useSession } = authClient;
+export const { signIn,signUp, signOut, useSession } = authClient;

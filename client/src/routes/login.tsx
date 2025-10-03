@@ -13,12 +13,11 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 import { useForm } from '@tanstack/react-form'
-import apiClient from '@/lib/axios'
 import z from "zod"
 import { AxiosError } from 'axios'
+import { CALLBACK_URL } from '@/lib/exports'
+import {   signIn } from '@/lib/auth-client'
 import { useAuth } from '@/context/AuthContext'
-// import { CALLBACK_URL } from '@/lib/exports'
-import {  signIn } from '@/lib/auth-client'
 
 export const Route = createFileRoute('/login')({
   component: Login,
@@ -27,7 +26,7 @@ export const Route = createFileRoute('/login')({
 
 function Login() {
   const navigate = useNavigate()
-  const { setUser } = useAuth()
+  const { setCurrentSessionId } = useAuth()
   const form = useForm({
     defaultValues: {
       email: '',
@@ -35,14 +34,14 @@ function Login() {
     },
     onSubmit: async ({ value }) => {
       try {
-        const res = await apiClient.post('/auth/sign-in/email', value)
+        const res = await signIn.email(value)
         
-        if (res.data.user) {
-          setUser(res.data.user)
+        if (res.data?.token) {
+          setCurrentSessionId(res.data.token)
           toast.success('Logged in successfully!')
           navigate({ to: '/dashboard' })
         } else {
-          toast.error('Login failed. Please check your credentials.')
+          toast.error(`Login failed.${res.error?.message}`)
         }
       } catch (error) {
         if(error instanceof AxiosError) {
@@ -58,7 +57,7 @@ function Login() {
   try {
     await signIn.social({
       provider: 'google',
-      callbackURL: `${window.location.origin}/auth-callback`
+      callbackURL: CALLBACK_URL
     });
   } catch (error) {
     console.error('Google login failed:', error);
