@@ -45,7 +45,7 @@ interface SessionInterface {
 }
 
 function RouteComponent() {
-  const { user, isLoading, currentSessionId } = useAuth()
+  const { user, isLoading, currentSessionId ,setCurrentSessionId} = useAuth()
   const navigate = useNavigate()
   const [sessions, setSessions] = useState<SessionInterface[]>()
   const getCurrentSessions = async () => {
@@ -59,6 +59,7 @@ function RouteComponent() {
     try { 
       await authClient.signOut()
       toast.success('Signed out')
+      setCurrentSessionId(null)
       navigate({ to: '/login' })
     } catch (error) {
       if (error instanceof AxiosError) {

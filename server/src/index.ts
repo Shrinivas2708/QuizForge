@@ -141,6 +141,37 @@ const authApp = new Hono<AppEnv>();
 //   return res;
 // });
 app.route("/auth", authApp);
+// Add this new route to your server/src/index.ts with logging
+
+app.get("/auth/sso-callback", async (c) => {
+  console.log("✅ [SERVER] Hit /auth/sso-callback endpoint.");
+  const db = getDb(c.env.DATABASE_URL);
+  const auth = createAuth(c.env, db);
+
+  const session = await auth.api.getSession({
+    headers: c.req.raw.headers,
+  });
+
+  if (!session?.session.token) {
+    console.error("❌ [SERVER] No session found after Google redirect. Check 'better-auth' config and cookies.");
+    return c.redirect(`${c.env.FRONTEND_URL}/login?error=auth_failed`);
+  }
+
+  console.log("✅ [SERVER] Session found. Full session object:", session);
+
+  // The session token is now available here.
+  const token = session.session.token;
+  
+  // The part before the dot is the session ID you need for the client-side.
+  const currentSessionId = token.split('.')[0];
+  console.log(`✅ [SERVER] Extracted currentSessionId: ${currentSessionId}`);
+
+  const redirectUrl = new URL(`${c.env.FRONTEND_URL}/auth-callback`);
+  redirectUrl.searchParams.set("token", currentSessionId);
+
+  console.log(`✅ [SERVER] Redirecting to client at: ${redirectUrl.toString()}`);
+  return c.redirect(redirectUrl.toString());
+});
 // --- END: Manual CORS Handling ---
 app.all("/auth/*", async (c) => {
   const db = getDb(c.env.DATABASE_URL);

@@ -53,19 +53,41 @@ function Login() {
     },
   })
 
- const handleGoogleLogin = async () => {
+//  const handleGoogleLogin = async () => {
+//   try {
+//     const res  = await signIn.social({
+//       provider: 'google',
+//       callbackURL: CALLBACK_URL
+//     });
+//     console.log(res)
+//   } catch (error) {
+//     console.error('Google login failed:', error);
+//     toast.error('Could not initiate Google login.');
+//   }
+// };
+
+// In client/src/routes/login.tsx
+
+const handleGoogleLogin = async () => {
   try {
-    const res  = await signIn.social({
+    const serverCallbackUrl = `${
+      import.meta.env.VITE_ENV === "dev" 
+        ? "http://localhost:8787" 
+        : "https://api.quizforge.shriii.xyz"
+    }/auth/sso-callback`;
+
+    // 👇 ADD THIS LOG
+    console.log(`🚀 [CLIENT] Initiating Google login. Redirecting to server callback: ${serverCallbackUrl}`);
+
+    await signIn.social({
       provider: 'google',
-      callbackURL: CALLBACK_URL
+      callbackURL: serverCallbackUrl,
     });
-    console.log(res)
   } catch (error) {
-    console.error('Google login failed:', error);
+    console.error('❌ [CLIENT] Google login initiation failed:', error);
     toast.error('Could not initiate Google login.');
   }
 };
-
   return (
     <div className="flex-1 grid place-items-center p-4">
       <Card className="w-full max-w-sm">
