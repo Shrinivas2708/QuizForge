@@ -1,5 +1,5 @@
 import { getDb } from "./db";
-
+import type {R2Bucket} from '@cloudflare/workers-types'
 export type DbInstance = ReturnType<typeof getDb>
 export type AppEnv = {
   Bindings: {
@@ -12,6 +12,7 @@ export type AppEnv = {
     IS_PROD : boolean;
     GEMINI_API_KEY:string;
     AI:string
+    R2_BUCKET: R2Bucket
   };
 };
 export type EnvBindings = {

@@ -2,7 +2,6 @@ import { createContext, useContext, useMemo, useState, type ReactNode } from 're
 import { useSession } from '@/lib/auth-client'
 import type { BetterFetchError } from 'better-auth/react'
 
-// Define the User interface based on your server's response
 interface User {
   id: string
   name: string
@@ -31,9 +30,7 @@ const [currentSessionId, setCurrentSessionIdState] = useState<string | null>(
   () => localStorage.getItem("currentSessionId") || null
 );
 
-// Typed wrapper to match Dispatch<SetStateAction<string | null>>
 const setCurrentSessionId: React.Dispatch<React.SetStateAction<string | null>> = (value) => {
-  // Handle functional updates
   const id = typeof value === "function" ? value(currentSessionId) : value;
 
   setCurrentSessionIdState(id);
@@ -41,7 +38,6 @@ const setCurrentSessionId: React.Dispatch<React.SetStateAction<string | null>> =
   if (id) localStorage.setItem("currentSessionId", id);
   else localStorage.removeItem("currentSessionId");
 };
-  // Derive what you want
   const user = session?.user ?? null;
   // const user = {
   //   name: 'Test User',
@@ -58,7 +54,6 @@ const setCurrentSessionId: React.Dispatch<React.SetStateAction<string | null>> =
   // const isLoading = false
   // const error = null
   // const refetch = ()=> console.log("refetch");
-  
   const value = useMemo(
     () => ({
       user,

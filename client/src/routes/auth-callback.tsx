@@ -41,7 +41,7 @@ function AuthCallback() {
         await sleep(50);
 
         console.log("✅ [CLIENT] Navigating to /dashboard.");
-        navigate({ to: '/dashboard', replace: true });
+        navigate({ to: '/profile', replace: true });
 
       } else {
         console.error("❌ [CLIENT] No token found in URL search parameters.");

@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, Link, redirect, useNavigate } from '@tanstack/react-router'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -16,17 +16,34 @@ import { useForm } from '@tanstack/react-form'
 import z from "zod"
 import { AxiosError } from 'axios'
 // import { CALLBACK_URL } from '@/lib/exports'
-import {   signIn } from '@/lib/auth-client'
+import {   handleGoogleLogin, signIn } from '@/lib/auth-client'
 import { useAuth } from '@/context/AuthContext'
+import { useEffect } from 'react'
 
 export const Route = createFileRoute('/login')({
+  
+ beforeLoad: ({ context }) => {
+   
+    if (context.auth.isLoading) {
+      return
+    }
+    
+    if (context.auth.isAuthenticated) {
+      throw redirect({ to: "/new" })
+    }
+  },
   component: Login,
 })
 
 
 function Login() {
   const navigate = useNavigate()
-  const { setCurrentSessionId } = useAuth()
+  const { setCurrentSessionId,refetch,isLoading,isAuthenticated } = useAuth()
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      navigate({ to: '/new', replace: true })
+    }
+  }, [isAuthenticated, isLoading, navigate])
   const form = useForm({
     defaultValues: {
       email: '',
@@ -38,8 +55,12 @@ function Login() {
         
         if (res.data?.token) {
           setCurrentSessionId(res.data.token)
+          await refetch()
           toast.success('Logged in successfully!')
-          navigate({ to: '/dashboard' })
+          setTimeout(() => {
+            
+      navigate({ to: '/new', replace: true })
+        }, 100)
         } else {
           toast.error(`Login failed.${res.error?.message}`)
         }
@@ -53,41 +74,14 @@ function Login() {
     },
   })
 
-//  const handleGoogleLogin = async () => {
-//   try {
-//     const res  = await signIn.social({
-//       provider: 'google',
-//       callbackURL: CALLBACK_URL
-//     });
-//     console.log(res)
-//   } catch (error) {
-//     console.error('Google login failed:', error);
-//     toast.error('Could not initiate Google login.');
-//   }
-// };
 
-// In client/src/routes/login.tsx
 
-const handleGoogleLogin = async () => {
-  try {
-    const serverCallbackUrl = `${
-      import.meta.env.VITE_ENV === "dev" 
-        ? "http://localhost:8787" 
-        : "https://api.quizforge.shriii.xyz"
-    }/auth/sso-callback`;
-
-    // 👇 ADD THIS LOG
-    console.log(`🚀 [CLIENT] Initiating Google login. Redirecting to server callback: ${serverCallbackUrl}`);
-
-    await signIn.social({
-      provider: 'google',
-      callbackURL: serverCallbackUrl,
-    });
-  } catch (error) {
-    console.error('❌ [CLIENT] Google login initiation failed:', error);
-    toast.error('Could not initiate Google login.');
+  
+  // If authenticated, show nothing (redirect happening)
+  if (isAuthenticated) {
+    return null
   }
-};
+  
   return (
     <div className="flex-1 grid place-items-center p-4">
       <Card className="w-full max-w-sm">

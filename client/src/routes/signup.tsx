@@ -1,4 +1,9 @@
-import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
+import {
+  createFileRoute,
+  Link,
+  redirect,
+  useNavigate,
+} from '@tanstack/react-router'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -12,17 +17,35 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
-import {  useForm } from '@tanstack/react-form'
+import { useForm } from '@tanstack/react-form'
 import { AxiosError } from 'axios'
 import z from 'zod'
-import { CALLBACK_URL } from '@/lib/exports'
-import { signIn, signUp } from '@/lib/auth-client'
+import { handleGoogleLogin, signUp } from '@/lib/auth-client'
+import { useEffect } from 'react'
+import { useAuth } from '@/context/AuthContext'
+import { Spinner } from '@/components/ui/spinner'
 export const Route = createFileRoute('/signup')({
+  beforeLoad: ({ context }) => {
+   
+    if (context.auth.isLoading) {
+      return
+    }
+    
+    if (context.auth.isAuthenticated) {
+      throw redirect({ to: "/new" })
+    }
+  },
   component: Signup,
 })
 
 function Signup() {
   const navigate = useNavigate()
+  const { setCurrentSessionId, refetch, isLoading, isAuthenticated } = useAuth()
+useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      navigate({ to: '/new', replace: true })
+    }
+  }, [isAuthenticated, isLoading, navigate])
   const form = useForm({
     defaultValues: {
       name: '',
@@ -32,13 +55,18 @@ function Signup() {
     onSubmit: async ({ value }) => {
       try {
         const res = await signUp.email(value)
-                
-                if (res.data?.token) {
-                  toast.success('Signed up successfully!')
-                  navigate({ to: '/dashboard' })
-                } else {
-                  toast.error(`Signup failed.${res.error?.message}`)
-                }
+
+        if (res.data?.token) {
+          setCurrentSessionId(res.data.token)
+          await refetch()
+          toast.success('Signed up successfully!')
+         setTimeout(() => {
+            
+      navigate({ to: '/new', replace: true })
+        }, 100)
+        } else {
+          toast.error(`Signup failed.${res.error?.message}`)
+        }
       } catch (error) {
         if (error instanceof AxiosError) {
           return toast.error(error.response?.data.message)
@@ -49,20 +77,18 @@ function Signup() {
     },
   })
 
-  const handleGoogleLogin = async () => {
-  try {
-   await signIn.social({
-      provider: 'google',
-      callbackURL: CALLBACK_URL
-    });
-  } catch (error) {
-    console.error('Google login failed:', error);
-    toast.error('Could not initiate Google login.');
+  if (isLoading) {
+    return (
+      <div className="flex-1 grid place-items-center p-4">
+        <Spinner />
+      </div>
+    )
   }
-};
+  if (isAuthenticated) {
+    return null
+  }
 
   return (
-    // The change is in this line 👇
     <div className="flex-1 grid place-items-center p-4">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
@@ -192,11 +218,14 @@ function Signup() {
             <Button
               type="submit"
               className="w-full"
-              onClick={() => toast.success('logged in!')}
             >
               Signup
             </Button>
-            <Button variant="outline" className="w-full" onClick={handleGoogleLogin}>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={handleGoogleLogin}
+            >
               Signup with Google
             </Button>
             <div className="mt-4 text-center text-sm">

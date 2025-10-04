@@ -22,7 +22,7 @@ export default function Nav() {
           // You can create a dropdown menu for profile/logout here
           <Avatar onClick={
             ()=>{
-              navigate({to:"/dashboard"})
+              navigate({to:"/profile"})
             }
           }
           className="cursor-pointer size-9"

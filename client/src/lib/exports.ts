@@ -1,6 +1,4 @@
-export let CALLBACK_URL : string ;
-if(import.meta.env.VITE_ENV=="dev"){
-    CALLBACK_URL = "http://localhost:3000/dashboard"
-}else{
-    CALLBACK_URL = "https://quizforge.shriii.xyz/dashboard"
-}
+export const SERVER_URL: string =
+  import.meta.env.VITE_ENV === 'dev'
+    ? 'http://localhost:8787'
+    : 'https://api.quizforge.shriii.xyz'
