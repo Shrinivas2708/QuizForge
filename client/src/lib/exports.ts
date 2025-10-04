@@ -4,4 +4,4 @@ export const SERVER_URL: string =
     : 'https://api.quizforge.shriii.xyz'
 
 
-export const sidebarRoutes = ['/new']
+export const sidebarRoutes = ['/new','/chat']

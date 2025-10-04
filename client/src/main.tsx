@@ -9,7 +9,13 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { ThemeProvider } from './components/providers/theme-provider.tsx'
 import { AuthProvider, useAuth } from './context/AuthContext.tsx'
 import { Spinner } from './components/ui/spinner.tsx'
-const queryClient = new QueryClient()
+const queryClient = new QueryClient({
+  defaultOptions:{
+    queries:{
+      refetchOnWindowFocus:false
+    }
+  }
+})
 
 const router = createRouter({
   routeTree,

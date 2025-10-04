@@ -128,14 +128,15 @@ export const getRAGChatResponse = async (
     Follow Up Input: {question}
     Standalone question:`);
 
-    const ANSWER_PROMPT = PromptTemplate.fromTemplate(`You are an expert on the provided documents. Answer the question based only on the following context.
+    const ANSWER_PROMPT = PromptTemplate.fromTemplate(`You are a helpful AI assistant and an expert on the provided documents. Answer the user's question based on the following context.
+    If the question is a simple greeting or conversational, you can respond naturally.
+    If the question is not related to the context and is not a simple greeting, state that you can only answer questions based on the provided document.
 
     Context:
     {context}
     
     Question: {question}
     Answer:`);
-    
     const conversationalRetrievalChain = RunnableSequence.from([
         {
             // This step gets the standalone question

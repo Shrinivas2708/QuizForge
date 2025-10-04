@@ -1,0 +1,15 @@
+version: '3.8'
+services:
+  db:
+    image: postgres:latest
+    environment:
+      POSTGRES_DB: quizforge-db
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test_123
+    ports:
+      - "5432:5432" # Map container port 5432 to host port 5432
+    volumes:
+      - postgres_data:/var/lib/postgresql/data # Mount a named volume for persistent data
+
+volumes:
+  postgres_data:

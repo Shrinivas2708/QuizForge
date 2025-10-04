@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { getDb } from "../db";
 import { createAuth } from "../utils/auth";
 import type { AppEnv } from "../types";
-import { sourcesTable } from "../db/schema";
+import { chatMessagesTable, sourcesTable } from "../db/schema";
 import { eq, and } from "drizzle-orm";
 import { processAndEmbedDocument } from "../services/langchain.service";
 // Import unpdf
@@ -41,7 +41,7 @@ sourceRoutes.post("/upload", async (c) => {
         status: 'processing',
         storageKey: storageKey, // Save the key
     }).returning().then(res => res[0]);
-    
+    await db.insert(chatMessagesTable)
     c.executionCtx.waitUntil((async () => {
         console.log(`[BACKGROUND] Starting processing for source: ${newSource.id}`);
         try {

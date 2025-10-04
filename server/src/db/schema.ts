@@ -217,13 +217,15 @@ export const chatSessionSourcesTable = pgTable("chat_session_sources", {
     pk: primaryKey({ columns: [table.sessionId, table.sourceId] }),
 }));
 
-export const messageRoleEnum = pgEnum('message_role', ['user', 'assistant']);
+export const messageRoleEnum = pgEnum('message_role', ['user', 'assistant', 'system']);
+export const messageTypeEnum = pgEnum('message_type', ['text', 'document_upload', 'quiz_form']);
 
 export const chatMessagesTable = pgTable("chat_messages", {
     id: text("id").primaryKey().default(sql`gen_random_uuid()`),
     sessionId: text("session_id").notNull().references(() => chatSessionsTable.id, { onDelete: "cascade" }),
     role: messageRoleEnum("role").notNull(),
-    content: text("content").notNull(),
+    content: jsonb("content").notNull(),
+     type: messageTypeEnum('type').notNull().default('text'),
     createdAt: timestamp("created_at").defaultNow(),
 });
 export const feedbackTypeEnum = pgEnum('feedback_type', ['like', 'dislike']);

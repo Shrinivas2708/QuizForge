@@ -7,9 +7,8 @@ import { eq, and, desc, asc } from "drizzle-orm";
 import { getRAGChatResponse } from "../services/langchain.service";
 
 const chatRoutes = new Hono<AppEnv>();
-
-// GET /api/chat/sessions - Get all chat sessions for the user
-chatRoutes.get("/sessions", async (c) => {
+chatRoutes.get("/sessions/history", async (c) => {
+    console.log("Hello")
     const db = getDb(c.env.DATABASE_URL);
     const auth = createAuth(c.env, db);
     const session = await auth.api.getSession({ headers: c.req.raw.headers });
@@ -18,8 +17,62 @@ chatRoutes.get("/sessions", async (c) => {
         return c.json({ error: "Unauthorized" }, 401);
     }
 
-    const sessions = await db.select().from(chatSessionsTable).where(eq(chatSessionsTable.userId, session.user.id));
+    const page = parseInt(c.req.query('page') || '1', 10);
+    const limit = parseInt(c.req.query('limit') || '10', 10);
+    const offset = (page - 1) * limit;
+const sessions = await db.select({
+        id: chatSessionsTable.id,
+        title: chatSessionsTable.title,
+    })
+    .from(chatSessionsTable)
+    .where(eq(chatSessionsTable.userId, session.user.id))
+    .orderBy(desc(chatSessionsTable.createdAt))
+    .limit(limit)
+    .offset(offset);
+if(!sessions){
+    return c.json({message:"No sessions"})
+}
     return c.json(sessions);
+    
+});
+// GET /api/chat/sessions - Get all chat sessions for the user
+chatRoutes.post("/sessions", async (c) => {
+    const db = getDb(c.env.DATABASE_URL);
+    const auth = createAuth(c.env, db);
+    const session = await auth.api.getSession({ headers: c.req.raw.headers });
+
+    if (!session?.user?.id) {
+        return c.json({ error: "Unauthorized" }, 401);
+    }
+
+    const { sourceId, title } = await c.req.json();
+    if (!sourceId) return c.json({ error: "sourceId is required" }, 400);
+
+    const newSession = await db.insert(chatSessionsTable).values({
+        userId: session.user.id,
+        title: title || "New Chat",
+    }).returning().then(res => res[0]);
+
+    await db.insert(chatSessionSourcesTable).values({
+        sessionId: newSession.id,
+        sourceId: sourceId,
+    });
+    await db.insert(chatMessagesTable).values([
+        {
+            sessionId: newSession.id,
+            role: 'system',
+            type: 'document_upload',
+            content: { title: title || 'your file', sourceId: sourceId }
+        },
+        {
+            sessionId: newSession.id,
+            role: 'system',
+            type: 'quiz_form',
+            content: { sourceId: sourceId, title: title || 'your file' }
+        }
+    ]);
+
+    return c.json(newSession, 201);
 });
 
 
@@ -133,7 +186,13 @@ chatRoutes.post("/sessions/:sessionId/message", async (c) => {
     const chatHistory = recentMessages.map(msg => `${msg.role}: ${msg.content}`).join('\n');
     
     // Save user message
-    await db.insert(chatMessagesTable).values({ sessionId, role: "user", content });
+     await db.insert(chatMessagesTable).values({ 
+        sessionId, 
+        role: "user", 
+        type: "text",
+        content: { text: content } 
+    });
+
 
     // 3. Get AI response using multiple sources and history
     const aiResponseContent = await getRAGChatResponse(c.env, content, sourceIds, session.user.id, chatHistory);
@@ -141,7 +200,8 @@ chatRoutes.post("/sessions/:sessionId/message", async (c) => {
     const aiMessage = await db.insert(chatMessagesTable).values({
         sessionId,
         role: "assistant",
-        content: aiResponseContent,
+        type: "text",
+        content: { text: aiResponseContent },
     }).returning().then(res => res[0]);
 
     return c.json(aiMessage);
