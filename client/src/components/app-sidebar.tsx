@@ -1,20 +1,40 @@
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
-  SidebarHeader,
-} from "@/components/ui/sidebar"
+  SidebarGroupContent,
+  SidebarMenu,
+} from '@/components/ui/sidebar'
+import { Link } from '@tanstack/react-router'
 
 export function AppSidebar() {
   return (
-    <Sidebar>
-      <SidebarHeader />
+    <Sidebar collapsible="icon">
       <SidebarContent>
-        <SidebarGroup />
-        <SidebarGroup />
+        <SidebarGroup>
+          {/* <SidebarGroupLabel>Application</SidebarGroupLabel> */}
+          <SidebarGroupContent className="">
+            <div className=" mt-2 text-center">
+              <Link to="/" className="">
+                <a
+                  className="font-logo   text-3xl font-extrabold cursor-pointer hover:text-foreground/80 "
+                  href="/"
+                >
+                  <span className="group-data-[state=collapsed]:hidden">
+                    Quizforge
+                  </span>
+                  <span className="hidden group-data-[state=collapsed]:block dark:text-white text-3xl">
+                    Q
+                  </span>
+                </a>
+              </Link>
+            </div>
+            <SidebarMenu className='mt-4'>
+             
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter />
     </Sidebar>
   )
 }

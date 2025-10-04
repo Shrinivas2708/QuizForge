@@ -127,6 +127,18 @@
   --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 8px 10px -1px hsl(0 0% 0% / 0.10);
   --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
   --tracking-normal: 0em;
+
+
+
+  /* Side bar themes */
+   --sidebar: oklch(0.9663 0.0080 98.8792);       /* A slightly off-white, like your cards */
+  --sidebar-foreground: oklch(0.3438 0.0269 95.7226); /* Your main foreground color */
+  --sidebar-primary: oklch(0.6171 0.1375 39.0427); /* Your primary color */
+  --sidebar-primary-foreground: oklch(1.0000 0 0);   /* Your primary-foreground color */
+  --sidebar-accent: oklch(0.9245 0.0138 92.9892);    /* Your accent color for hover states */
+  --sidebar-accent-foreground: oklch(0.2671 0.0196 98.9390); /* Your accent-foreground color */
+  --sidebar-border: oklch(0.9401 0 0);               /* A subtle border */
+  --sidebar-ring: oklch(0.6171 0.1375 39.0427); 
 }
 
 .dark {
@@ -182,6 +194,18 @@
   --shadow-lg: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 4px 6px -1px hsl(0 0% 0% / 0.10);
   --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 8px 10px -1px hsl(0 0% 0% / 0.10);
   --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
+
+
+
+  /* Side bar themes */
+  --sidebar: oklch(26.064% 0.00394 84.541);       /* A very dark, slightly off-black */
+  --sidebar-foreground: oklch(0.8074 0.0142 93.0137); /* Your main dark foreground color */
+  --sidebar-primary: oklch(0.6724 0.1308 38.7559);   /* Your primary dark color */
+  --sidebar-primary-foreground: oklch(1.0000 0 0);     /* Your primary-foreground dark color */
+  --sidebar-accent: oklch(0.1680 0.0020 106.6177);  /* A very subtle dark accent for hover */
+  --sidebar-accent-foreground: oklch(0.8074 0.0142 93.0137); /* Your main dark foreground for accent text */
+  --sidebar-border: oklch(0.3618 0.0101 106.8928); /* Your dark border color */
+  --sidebar-ring: oklch(0.6724 0.1308 38.7559); 
 }
 
 @layer base {

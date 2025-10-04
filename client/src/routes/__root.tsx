@@ -1,6 +1,7 @@
 import Footer from '@/components/Footer'
 import Nav from '@/components/Nav'
 import { useTheme } from '@/components/providers/theme-provider'
+import { sidebarRoutes } from '@/lib/exports'
 import type { QueryClient } from '@tanstack/react-query'
 import {
   Outlet,
@@ -42,26 +43,26 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
   component: RootComponent,
 })
 
+
 function RootComponent() {
   const { theme } = useTheme()
   const routerState = useRouterState()
 
-  // Check if we're on an authenticated route
-  const isAuthenticatedRoute =
-    routerState.location.pathname.startsWith('/_authenticated') ||
-    routerState.matches.some((match) =>
-      match.routeId.includes('/_authenticated'),
-    )
+  // ✅ Check if the current route is one that uses the sidebar layout
+  const hasSidebarLayout = sidebarRoutes.some((route) =>
+    routerState.location.pathname.startsWith(route),
+  )
 
   return (
     <>
-      {isAuthenticatedRoute ? (
-        // Authenticated routes get full control (sidebar layout)
+      {hasSidebarLayout ? (
+        // Routes WITH a sidebar get a minimal wrapper to take up the full screen
         <div className="min-h-screen w-full">
           <Outlet />
         </div>
       ) : (
-        // Public routes get Nav/Footer
+        // Public routes AND authenticated routes WITHOUT a sidebar (e.g., /profile)
+        // get the standard Nav/Footer layout
         <div className="flex flex-col min-h-screen max-w-screen-2xl mx-auto w-full">
           <Nav />
           <main className="flex-1 flex flex-col">

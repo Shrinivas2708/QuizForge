@@ -3,25 +3,27 @@ import { Button } from "./ui/button";
 import { ThemeButton } from "./toggle-theme";
 import { useAuth } from "@/context/AuthContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"; // Assuming you have an Avatar component
+import { sidebarRoutes } from "@/lib/exports";
 
 export default function Nav() {
   
     const routerState = useRouterState()
   
-  const isAuthenticatedRoute =
-    routerState.location.pathname.startsWith('/_authenticated') ||
-    routerState.matches.some((match) =>
-      match.routeId.includes('/_authenticated'),
+  const isAuthenticatedRoute  = sidebarRoutes.some((route) =>
+      routerState.location.pathname.startsWith(route),
     )
+  
   const { isAuthenticated, user, isLoading } = useAuth();
   const navigate = useNavigate()
   return (
-    <div className={`w-full  py-3 px-5 flex justify-between items-center ${isAuthenticatedRoute ? "":"border-b" }`}>
-      <Link to="/">
+    <div className={`w-full  py-3 px-5 flex  items-center ${isAuthenticatedRoute ? "justify-end":"border-b justify-between" }`}>
+      {
+        isAuthenticatedRoute ? "": <Link to="/">
         <p className="font-logo text-2xl font-extrabold cursor-pointer hover:text-foreground/80">
           QuizForge
         </p>
       </Link>
+      }
       <div className="flex gap-3 items-center">
         <ThemeButton/>
         {isLoading ? (
