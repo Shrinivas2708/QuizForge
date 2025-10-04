@@ -1,14 +1,22 @@
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Button } from "./ui/button";
 import { ThemeButton } from "./toggle-theme";
 import { useAuth } from "@/context/AuthContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"; // Assuming you have an Avatar component
 
 export default function Nav() {
+  
+    const routerState = useRouterState()
+  
+  const isAuthenticatedRoute =
+    routerState.location.pathname.startsWith('/_authenticated') ||
+    routerState.matches.some((match) =>
+      match.routeId.includes('/_authenticated'),
+    )
   const { isAuthenticated, user, isLoading } = useAuth();
   const navigate = useNavigate()
   return (
-    <div className="w-full border-b py-3 px-5 flex justify-between items-center">
+    <div className={`w-full  py-3 px-5 flex justify-between items-center ${isAuthenticatedRoute ? "":"border-b" }`}>
       <Link to="/">
         <p className="font-logo text-2xl font-extrabold cursor-pointer hover:text-foreground/80">
           QuizForge
