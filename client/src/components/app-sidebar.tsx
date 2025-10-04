@@ -6,6 +6,7 @@ import {
   SidebarMenu,
 } from '@/components/ui/sidebar'
 import { Link } from '@tanstack/react-router'
+import { ScrollArea } from './ui/scroll-area'
 
 export function AppSidebar() {
   return (
@@ -29,8 +30,10 @@ export function AppSidebar() {
                 </a>
               </Link>
             </div>
-            <SidebarMenu className='mt-4'>
-             
+            <SidebarMenu className='mt-4 '>
+             <ScrollArea className='h-[40rem] text-center flex justify-center items-center'>
+              No history
+             </ScrollArea>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

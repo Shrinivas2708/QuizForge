@@ -64,7 +64,7 @@ function AuthenticatedLayout() {
             <SidebarTrigger className="-ml-1" />
             <Nav />
           </header>
-          <div className="flex flex-1 flex-col gap-4 p-4 overflow-auto">
+          <div className="flex flex-1 flex-col gap-4  overflow-auto">
             <Outlet />
           </div>
         </SidebarInset>
