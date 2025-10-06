@@ -29,7 +29,13 @@ interface QuizGenerationProps {
 export function QuizGeneration({ sourceId, sourceTitle }: QuizGenerationProps) {
   const navigate = useNavigate({ from: '/chat/$chatId' });
   const { data: source, error } = useSourceStatus(sourceId);
-  const generateQuiz = useGenerateQuiz();
+  const generateQuiz = useGenerateQuiz(
+    {
+      onSuccess() {
+        
+      },
+    }
+  );
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
 
   const handleGenerateQuiz = () => {
@@ -41,6 +47,7 @@ export function QuizGeneration({ sourceId, sourceTitle }: QuizGenerationProps) {
         questionCount: 10,
         questionTypes: ["multiple_choice", "true_false"],
       },
+      sessionId: ""
     });
   };
 

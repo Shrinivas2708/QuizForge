@@ -1,10 +1,13 @@
+// hooks/useUploadFile.ts
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/lib/axios";
 import { useNavigate } from "@tanstack/react-router";
+import { toast } from "sonner";
 
 interface UploadPayload {
   file: File;
   title: string;
+  replaceSession?: string; // Optional: replace existing session
 }
 
 export const useUploadFile = () => {
@@ -16,26 +19,31 @@ export const useUploadFile = () => {
       const formData = new FormData();
       formData.append("file", payload.file);
       formData.append("title", payload.title);
+      if (payload.replaceSession) {
+        formData.append("replaceSession", payload.replaceSession);
+      }
 
       const response = await apiClient.post("/sources/upload", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      const source = response.data;
-
-      const chatResponse = await apiClient.post("/chat/sessions", {
-        sourceId: source.id,
-        title: payload.title,
-      });
       
-      return { source, chatSession: chatResponse.data };
+      return response.data;
     },
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['chatHistory'] });
-      navigate({
-        to: '/chat/$chatId',
-        params: { chatId: data.chatSession.id },
-        search: { sourceId: data.source.id, title: data.chatSession.title },
-      });
+      
+      if (variables.replaceSession) {
+        toast.success("New document added to conversation");
+        queryClient.invalidateQueries({ queryKey: ['chat', data.sessionId] });
+      } else {
+        navigate({
+          to: '/chat/$chatId',
+          params: { chatId: data.sessionId },
+        });
+      }
+    },
+    onError: () => {
+      toast.error("Failed to upload document");
     },
   });
 };

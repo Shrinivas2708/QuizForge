@@ -20,7 +20,6 @@ export function AppSidebar() {
     error,
     fetchNextPage,
     hasNextPage,
-    isFetching,
     isFetchingNextPage,
     status,
   } = useChatHistory()

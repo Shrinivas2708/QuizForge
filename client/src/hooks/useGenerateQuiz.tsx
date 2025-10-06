@@ -1,4 +1,5 @@
-import { useMutation, type UseMutationOptions } from "@tanstack/react-query";
+// hooks/useGenerateQuiz.ts
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/lib/axios";
 import { toast } from "sonner";
 
@@ -12,34 +13,24 @@ interface GenerateQuizPayload {
   sourceId: string;
   title: string;
   config: QuizConfig;
+  sessionId: string; // ADD THIS
 }
 
-// Define types for the mutation function
-type GenerateQuizData = any; // You can replace 'any' with the actual type of the returned quiz
-type GenerateQuizError = { response?: { data?: { error?: string } } };
-
-// Define the type for the options that can be passed to the hook
-type GenerateQuizOptions = Omit<
-  UseMutationOptions<GenerateQuizData, GenerateQuizError, GenerateQuizPayload>,
-  'mutationFn'
->;
-
-
-export const useGenerateQuiz = (options?: GenerateQuizOptions) => {
+export const useGenerateQuiz = (_p0: { onSuccess: () => void; }) => {
+  const queryClient = useQueryClient();
+  
   return useMutation({
     mutationFn: async (payload: GenerateQuizPayload) => {
       const response = await apiClient.post("/quizzes", payload);
       return response.data;
     },
-    // Default success toast
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       toast.success("Quiz generated successfully!");
+      // Invalidate chat to show the new quiz_generated message
+      queryClient.invalidateQueries({ queryKey: ['chat', variables.sessionId] });
     },
-    // Default error toast
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error(error.response?.data?.error || "Failed to generate quiz.");
     },
-    // Spread any custom options from the user, which can override the defaults
-    ...options,
   });
 };

@@ -44,8 +44,7 @@ export const useSendMessage = () => {
 
       return { previousMessages };
     },
-
-    onError: (err, newMessage, context) => {
+    onError: (_err, newMessage, context) => {
       if (context?.previousMessages) {
         queryClient.setQueryData(['chat', newMessage.chatId], context.previousMessages);
       }

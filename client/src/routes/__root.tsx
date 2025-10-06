@@ -43,12 +43,10 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
   component: RootComponent,
 })
 
-
 function RootComponent() {
   const { theme } = useTheme()
   const routerState = useRouterState()
 
-  // ✅ Check if the current route is one that uses the sidebar layout
   const hasSidebarLayout = sidebarRoutes.some((route) =>
     routerState.location.pathname.startsWith(route),
   )
@@ -56,16 +54,15 @@ function RootComponent() {
   return (
     <>
       {hasSidebarLayout ? (
-        // Routes WITH a sidebar get a minimal wrapper to take up the full screen
-        <div className="min-h-screen w-full">
+        // Routes WITH sidebar: fixed height, no scrolling at root level
+        <div className="h-screen w-full overflow-hidden">
           <Outlet />
         </div>
       ) : (
-        // Public routes AND authenticated routes WITHOUT a sidebar (e.g., /profile)
-        // get the standard Nav/Footer layout
-        <div className="flex flex-col min-h-screen max-w-screen-2xl mx-auto w-full">
+        // Public routes AND authenticated routes WITHOUT sidebar
+        <div className="flex min-h-screen w-full max-w-screen-2xl mx-auto flex-col">
           <Nav />
-          <main className="flex-1 flex flex-col">
+          <main className="flex flex-1 flex-col">
             <Outlet />
           </main>
           <Footer />

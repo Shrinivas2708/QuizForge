@@ -1,134 +1,271 @@
-import { createFileRoute } from '@tanstack/react-router';
-import { useQuery } from '@tanstack/react-query';
-import apiClient from '@/lib/axios';
-import { Spinner } from '@/components/ui/spinner';
+import { createFileRoute } from "@tanstack/react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import apiClient from "../../../lib/axios";
+import { Spinner } from "../../../components/ui/spinner";
 import {
   PromptInput,
+  PromptInputActionAddAttachments,
+  PromptInputActionMenu,
+  PromptInputActionMenuContent,
+  PromptInputActionMenuTrigger,
   PromptInputBody,
   PromptInputSubmit,
   PromptInputTextarea,
   PromptInputToolbar,
-} from '@/components/ai-elements/prompt-input';
-import { useSendMessage } from '@/hooks/useSendMessage';
+  PromptInputTools,
+} from "../../../components/ai-elements/prompt-input";
+import { useSendMessage } from "../../../hooks/useSendMessage";
 import {
   Conversation,
   ConversationContent,
   ConversationEmptyState,
-  ConversationScrollButton,
-} from '@/components/ai-elements/conversation';
-import { Message, MessageContent, MessageAvatar } from '@/components/ai-elements/message';
-import { MessageSquare, FileText, BotIcon } from 'lucide-react';
-import { Response } from '@/components/ai-elements/response';
-import { QuizInteractionMessage } from '@/components/QuizInteractionMessage';
-import { useAuth } from '@/context/AuthContext';
+} from "../../../components/ai-elements/conversation";
+import {
+  Message,
+  MessageContent,
+  MessageAvatar,
+} from "../../../components/ai-elements/message";
+import { MessageSquare, FileText, BotIcon } from "lucide-react";
+import { Response } from "../../../components/ai-elements/response";
+import { useAuth } from "../../../context/AuthContext";
+import { QuizConfigMessage } from "@/components/QuizConfigMessage";
+import { useSourceStatus } from "@/hooks/useSourceStatus";
+import { ProcessingMessage } from "@/components/ProcessingMessage";
+import { QuizGeneratedMessage } from "@/components/QuizInteractionMessage";
+import { useEffect, useRef } from "react";
+import { useUploadFile } from "@/hooks/useUploadFile";
+import { toast } from "sonner";
 
 interface ChatMessage {
   id: string;
-  role: 'user' | 'assistant';
-  type: 'text' | 'document_upload' | 'quiz_interaction';
+  role: "user" | "assistant" | "system";
+  type:
+    | "text"
+    | "document_upload"
+    | "quiz_interaction"
+    | "processing_complete"
+    | "quiz_generated";
   content: any;
+  createdAt: string;
 }
 
-export const Route = createFileRoute('/_authenticated/chat/$chatId')({
+export const Route = createFileRoute("/_authenticated/chat/$chatId")({
   component: ChatComponent,
 });
 
 function ChatComponent() {
   const { chatId } = Route.useParams();
-  const { user } = useAuth(); // Get user for avatar
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const uploadFile = useUploadFile();
   const { data: messages, isLoading } = useQuery<ChatMessage[]>({
-    queryKey: ['chat', chatId],
+    queryKey: ["chat", chatId],
     queryFn: async () => {
       const response = await apiClient.get(`/chat/sessions/${chatId}`);
-      return response.data;
+      return response.data.reverse();
     },
     refetchOnWindowFocus: false,
   });
+  const chatRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (chatRef.current) {
+      chatRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, []);
+  const latestSource = messages?.find((m) => m.type === "document_upload")
+    ?.content as { sourceId: string; title: string } | undefined;
+  const { data: sourceStatus } = useSourceStatus(
+    latestSource?.sourceId || null,
+  );
+
+  useEffect(() => {
+    if (sourceStatus?.status === "ready") {
+      const hasCompleteMessage = messages?.some(
+        (m) => m.type === "processing_complete",
+      );
+      if (!hasCompleteMessage) {
+        queryClient.invalidateQueries({ queryKey: ["chat", chatId] });
+      }
+    }
+  }, [sourceStatus?.status, messages, chatId, queryClient]);
 
   const sendMessageMutation = useSendMessage();
 
-  const handleSendMessage = (message: { text?: string }) => {
-    if (!message.text?.trim()) return;
-    sendMessageMutation.mutate({ chatId, content: message.text });
+  const handleSendMessage = (text: string) => {
+    if (!text.trim()) return;
+    sendMessageMutation.mutate({ chatId, content: text });
   };
 
   const renderMessage = (message: ChatMessage) => {
     switch (message.type) {
-      case 'text':
+      case "text": {
+        const content = message.content as { text: string };
         return (
           <Message from={message.role} key={message.id}>
-             {message.role === 'assistant' && <MessageAvatar name="AI" icon={<BotIcon />} />}
+            {message.role === "assistant" && (
+              <MessageAvatar name="AI" icon={<BotIcon />} />
+            )}
             <MessageContent>
-              <Response>{message.content.text}</Response>
+              <Response>{content.text}</Response>
             </MessageContent>
-            {message.role === 'user' && <MessageAvatar src={user?.image!} name={user?.name || 'U'} />}
+            {message.role === "user" && (
+              <MessageAvatar src={user?.image!} name={user?.name || "U"} />
+            )}
           </Message>
         );
-      case 'document_upload':
+      }
+
+      case "document_upload": {
+        const content = message.content as { title: string; sourceId: string };
         return (
-           <Message from="user" key={message.id}>
-             <MessageContent variant="flat" className="bg-muted text-muted-foreground border-dashed">
-                <div className="flex items-center gap-2">
-                    <FileText className="size-4" />
-                    <span>You uploaded {message.content.title}</span>
-                </div>
-             </MessageContent>
-             <MessageAvatar src={user?.image!} name={user?.name || 'U'} />
-           </Message>
+          <Message from="user" key={message.id}>
+            <MessageContent
+              variant="flat"
+              className="bg-muted text-muted-foreground border-dashed"
+            >
+              <div className="flex items-center gap-2">
+                <FileText className="size-4" />
+                <span>You uploaded {content.title}</span>
+              </div>
+            </MessageContent>
+            <MessageAvatar src={user?.image!} name={user?.name || "U"} />
+          </Message>
         );
-      case 'quiz_interaction':
+      }
+
+      case "processing_complete": {
+        const content = message.content as { sourceId: string };
         return (
-            <Message from="assistant" key={message.id}>
-                <MessageAvatar name="AI" icon={<BotIcon />} />
-                <MessageContent>
-                    <QuizInteractionMessage message={message} onGenerate={(text) => handleSendMessage({ text })} />
-                </MessageContent>
-            </Message>
+          <Message from="assistant" key={message.id}>
+            <MessageAvatar name="AI" icon={<BotIcon />} />
+            <MessageContent>
+              <QuizConfigMessage
+                sourceId={content.sourceId}
+                title={latestSource?.title || "Document"}
+                sessionId={chatId}
+              />
+            </MessageContent>
+          </Message>
         );
+      }
+
+      case "quiz_generated": {
+        const content = message.content as {
+          quizId: string;
+          title: string;
+          questionCount: number;
+        };
+        return (
+          <Message from="assistant" key={message.id}>
+            <MessageAvatar name="AI" icon={<BotIcon />} />
+            <MessageContent>
+              <QuizGeneratedMessage
+                quizId={content.quizId}
+                title={content.title}
+                questionCount={content.questionCount}
+                sourceId={latestSource?.sourceId || ""}
+                sessionId={chatId}
+              />
+            </MessageContent>
+          </Message>
+        );
+      }
+
       default:
         return null;
     }
   };
 
-  return (
-    <div className="flex-1 flex flex-col h-full">
-      <Conversation>
-        <ConversationContent>
-          {isLoading ? (
-            <div className="flex h-full justify-center items-center"><Spinner /></div>
-          ) : messages && messages.length > 0 ? (
-            messages.map(renderMessage)
-          ) : (
-            <ConversationEmptyState
-              icon={<MessageSquare className="size-12" />}
-              title="Start a conversation"
-              description="Upload a new document to begin."
-            />
-          )}
-        </ConversationContent>
-        <ConversationScrollButton />
-      </Conversation>
+  const showProcessing = latestSource && sourceStatus?.status === "processing";
 
-      <div className="p-4 border-t">
-        <PromptInput
-          onSubmit={handleSendMessage}
-          className="max-w-3xl mx-auto"
-          key={messages?.length}
-        >
-          <PromptInputBody>
-            <PromptInputTextarea
-              placeholder="Ask a question about your document..."
-              disabled={sendMessageMutation.isPending}
-            />
-          </PromptInputBody>
+  return (
+    <div className="flex h-full flex-col scrollbar" ref={chatRef} >
+      {/* Scrollable conversation area - takes remaining space */}
+      <div className="min-h-0 flex-1">
+        <Conversation className="h-full">
+          <ConversationContent>
+            {isLoading ? (
+              <div className="flex h-full items-center justify-center">
+                <Spinner />
+              </div>
+            ) : messages && messages.length > 0 ? (
+              <>
+                {messages.map(renderMessage)}
+                {showProcessing && (
+                  <Message from="assistant">
+                    <MessageAvatar name="AI" icon={<BotIcon />} />
+                    <MessageContent>
+                      <ProcessingMessage />
+                    </MessageContent>
+                  </Message>
+                )}
+              </>
+            ) : (
+              <ConversationEmptyState
+                icon={<MessageSquare className="size-12" />}
+                title="Start a new conversation"
+                description="Upload a document to begin generating quizzes and asking questions."
+              />
+            )}
+          </ConversationContent>
+        </Conversation>
+      </div>
+
+      {/* Fixed prompt input at bottom */}
+
+      <PromptInput
+        accept=".pdf"
+        maxFiles={1}
+        maxFileSize={10 * 1024 * 1024}
+        onSubmit={(message) => {
+          if (message.files && message.files.length > 0) {
+            const file = message.files[0];
+            fetch(file.url!)
+              .then((res) => res.blob())
+              .then((blob) => {
+                const actualFile = new File([blob], file.filename!, {
+                  type: "application/pdf",
+                });
+                uploadFile.mutate({
+                  file: actualFile,
+                  title: file.filename!,
+                  replaceSession: chatId,
+                });
+              });
+          } else if (message.text) {
+            handleSendMessage(message.text);
+          }
+        }}
+        onError={(err) => {
+          if ("message" in err) {
+            toast.error(err.message);
+          } else {
+            toast.error("An unexpected error occurred.");
+          }
+        }}
+        className="mx-auto max-w-3xl"
+      >
+        <PromptInputBody>
+          <PromptInputTextarea
+            placeholder="Ask a question or attach a PDF document..."
+            disabled={sendMessageMutation.isPending || showProcessing}
+          />
           <PromptInputToolbar>
+            <PromptInputTools>
+              <PromptInputActionMenu>
+                <PromptInputActionMenuTrigger />
+                <PromptInputActionMenuContent>
+                  <PromptInputActionAddAttachments label="Upload PDF Document" />
+                </PromptInputActionMenuContent>
+              </PromptInputActionMenu>
+            </PromptInputTools>
             <PromptInputSubmit
-              status={sendMessageMutation.isPending ? 'submitted' : 'ready'}
-              disabled={sendMessageMutation.isPending}
+              status={sendMessageMutation.isPending ? "submitted" : "ready"}
+              disabled={sendMessageMutation.isPending || showProcessing}
             />
           </PromptInputToolbar>
-        </PromptInput>
-      </div>
+        </PromptInputBody>
+      </PromptInput>
     </div>
   );
 }

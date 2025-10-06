@@ -2,13 +2,14 @@ import { Hono } from "hono";
 import { getDb } from "../db";
 import { createAuth } from "../utils/auth";
 import type { AppEnv } from "../types";
-import { quizzesTable, questionsTable, sourcesTable } from "../db/schema";
+import { quizzesTable, questionsTable, sourcesTable, chatMessagesTable } from "../db/schema";
 import { eq, and } from "drizzle-orm";
 import { generateQuizFromContent } from "../services/langchain.service";
 
 const quizRoutes = new Hono<AppEnv>();
 
 // POST /api/quizzes - Generate a new quiz
+// routes/quiz.routes.ts
 quizRoutes.post("/", async (c) => {
     const db = getDb(c.env.DATABASE_URL);
     const auth = createAuth(c.env, db);
@@ -18,7 +19,7 @@ quizRoutes.post("/", async (c) => {
         return c.json({ error: "Unauthorized" }, 401);
     }
 
-    const { sourceId, config, title } = await c.req.json();
+    const { sourceId, config, title, sessionId } = await c.req.json(); // ADD sessionId
 
     if (!sourceId || !config || !title) {
         return c.json({ error: "Missing required fields: sourceId, config, title" }, 400);
@@ -34,7 +35,7 @@ quizRoutes.post("/", async (c) => {
         return c.json({ error: "Source content is not ready or is empty" }, 400);
     }
 
-    const generatedQuestions = await generateQuizFromContent(c.env,source.rawContent, config);
+    const generatedQuestions = await generateQuizFromContent(c.env, source.rawContent, config);
 
     const newQuiz = await db.insert(quizzesTable).values({
         ownerId: session.user.id,
@@ -53,6 +54,20 @@ quizRoutes.post("/", async (c) => {
 
     if (questionsToInsert.length > 0) {
         await db.insert(questionsTable).values(questionsToInsert);
+    }
+
+    // ADD: Create a message showing quiz is ready
+    if (sessionId) {
+        await db.insert(chatMessagesTable).values({
+            sessionId,
+            role: 'assistant',
+            type: 'quiz_generated',
+            content: { 
+                quizId: newQuiz.id,
+                title: newQuiz.title,
+                questionCount: questionsToInsert.length
+            }
+        });
     }
 
     return c.json({ ...newQuiz, questions: questionsToInsert }, 201);

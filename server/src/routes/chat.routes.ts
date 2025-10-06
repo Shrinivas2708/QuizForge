@@ -2,9 +2,10 @@ import { Hono } from "hono";
 import { getDb } from "../db";
 import { createAuth } from "../utils/auth";
 import type { AppEnv } from "../types";
-import { chatSessionsTable, chatMessagesTable, sourcesTable, chatSessionSourcesTable } from "../db/schema";
+import { chatSessionsTable, chatMessagesTable, sourcesTable, chatSessionSourcesTable, quizzesTable } from "../db/schema";
 import { eq, and, desc, asc } from "drizzle-orm";
 import { getRAGChatResponse } from "../services/langchain.service";
+import { classifyIntent } from "../services/intent.service";
 
 const chatRoutes = new Hono<AppEnv>();
 chatRoutes.get("/sessions/history", async (c) => {
@@ -170,42 +171,166 @@ chatRoutes.post("/sessions/:sessionId/message", async (c) => {
     });
     if (!chatSession) return c.json({ error: "Chat session not found" }, 404);
 
-    // 1. Fetch all source IDs linked to this session
-    const sourceLinks = await db.select({ sourceId: chatSessionSourcesTable.sourceId }).from(chatSessionSourcesTable)
+    // Get context for intent classification
+    const sourceLinks = await db.select({ sourceId: chatSessionSourcesTable.sourceId })
+        .from(chatSessionSourcesTable)
         .where(eq(chatSessionSourcesTable.sessionId, sessionId));
     
-    if (sourceLinks.length === 0) return c.json({ error: "No sources linked to this chat session" }, 400);
     const sourceIds = sourceLinks.map(link => link.sourceId);
-
-    // 2. Fetch recent chat history
-    const recentMessages = await db.select().from(chatMessagesTable)
-        .where(eq(chatMessagesTable.sessionId, sessionId))
-        .orderBy(asc(chatMessagesTable.createdAt))
-        .limit(10); // Get last 10 messages for context
-
-    const chatHistory = recentMessages.map(msg => `${msg.role}: ${msg.content}`).join('\n');
     
+    // Check if there's a quiz generated
+    const existingQuiz = sourceIds.length > 0 
+        ? await db.select().from(quizzesTable)
+            .where(and(
+                eq(quizzesTable.ownerId, session.user.id),
+                eq(quizzesTable.sourceId, sourceIds[0])
+            ))
+            .then(res => res[0])
+        : null;
+
+    // Check document status
+    const latestSource = sourceIds.length > 0
+        ? await db.select().from(sourcesTable)
+            .where(eq(sourcesTable.id, sourceIds[0]))
+            .then(res => res[0])
+        : null;
+
+    // Classify user intent
+    const intent = await classifyIntent(c.env, content, {
+        hasDocument: sourceIds.length > 0,
+        hasQuiz: !!existingQuiz,
+        documentReady: latestSource?.status === 'ready',
+    });
+
     // Save user message
-     await db.insert(chatMessagesTable).values({ 
+    await db.insert(chatMessagesTable).values({ 
         sessionId, 
         role: "user", 
         type: "text",
         content: { text: content } 
     });
 
+    let aiResponseContent: string;
+    let aiResponseType: 'text' | 'quiz_config_prompt' = 'text';
 
-    // 3. Get AI response using multiple sources and history
-    const aiResponseContent = await getRAGChatResponse(c.env, content, sourceIds, session.user.id, chatHistory);
+    // Handle different intents
+    switch (intent) {
+        case 'greeting':
+            aiResponseContent = "Hello! I'm here to help you generate quizzes from your documents. Upload a document to get started, or ask me anything!";
+            break;
 
-    const aiMessage = await db.insert(chatMessagesTable).values({
-        sessionId,
-        role: "assistant",
-        type: "text",
-        content: { text: aiResponseContent },
-    }).returning().then(res => res[0]);
+        case 'quiz_request':
+            if (!latestSource || latestSource.status !== 'ready') {
+                aiResponseContent = "Please wait for your document to finish processing before generating a quiz, or upload a new document.";
+            } else {
+                // Trigger quiz config UI
+                aiResponseType = 'quiz_config_prompt';
+                aiResponseContent = ''; // Will be handled by quiz_config_prompt message type
+                
+                await db.insert(chatMessagesTable).values({
+                    sessionId,
+                    role: 'assistant',
+                    type: 'processing_complete',
+                    content: { sourceId: latestSource.id }
+                });
+                
+                return c.json({ success: true, intent });
+            }
+            break;
+
+        case 'quiz_start':
+            if (!existingQuiz) {
+                aiResponseContent = "You haven't generated a quiz yet. Would you like me to create one for you?";
+            } else {
+                aiResponseContent = `Great! Your quiz "${existingQuiz.title}" is ready. Click the "Start Quiz" button above to begin.`;
+            }
+            break;
+
+        case 'new_document':
+            aiResponseContent = "To upload a new document, use the upload button in the sidebar. Once uploaded, I'll process it and we can generate a new quiz from it. Your current session will remain available in the history.";
+            break;
+
+        case 'platform_question':
+            aiResponseContent = `I can help you with:
+            
+- **Upload documents** - PDF files containing study material
+- **Generate quizzes** - Customizable difficulty and question count
+- **Ask questions** - About your document's content
+- **Take quizzes** - Test your knowledge
+- **Share quizzes** - Create rooms for others to take your quiz
+
+What would you like to do?`;
+            break;
+
+        case 'out_of_scope':
+            aiResponseContent = "I'm specialized in helping you create and take quizzes from your documents. I can't help with that request, but I'd be happy to help you generate a quiz or answer questions about your uploaded content!";
+            break;
+
+        case 'content_question':
+        default:
+            if (sourceIds.length === 0) {
+                aiResponseContent = "Please upload a document first so I can answer questions about its content.";
+            } else {
+                // Get recent chat history
+                const recentMessages = await db.select().from(chatMessagesTable)
+                    .where(eq(chatMessagesTable.sessionId, sessionId))
+                    .orderBy(asc(chatMessagesTable.createdAt))
+                    .limit(10);
+
+                const chatHistory = recentMessages
+                    .filter(msg => msg.type === 'text')
+                    .map(msg => {
+                        const content = msg.content as { text?: string };
+                        return `${msg.role}: ${content.text || ''}`;
+                    })
+                    .join('\n');
+                
+                aiResponseContent = await getRAGChatResponse(
+                    c.env, 
+                    content, 
+                    sourceIds, 
+                    session.user.id, 
+                    chatHistory
+                );
+            }
+            break;
+    }
+
+   const aiMessage = await db.insert(chatMessagesTable).values({
+    sessionId,
+    role: "assistant",
+    type: "text",
+    content: { text: aiResponseContent },
+}).returning().then(res => res[0]);
 
     return c.json(aiMessage);
 });
 
+// POST /api/chat/sessions/create - Create session from text input
+chatRoutes.post("/sessions/create", async (c) => {
+    const db = getDb(c.env.DATABASE_URL);
+    const auth = createAuth(c.env, db);
+    const session = await auth.api.getSession({ headers: c.req.raw.headers });
 
+    if (!session?.user?.id) {
+        return c.json({ error: "Unauthorized" }, 401);
+    }
+
+    const { content, title } = await c.req.json();
+    if (!content) return c.json({ error: "content is required" }, 400);
+
+    const newSession = await db.insert(chatSessionsTable).values({
+        userId: session.user.id,
+        title: title || "New Conversation",
+    }).returning().then(res => res[0]);
+
+    await db.insert(chatMessagesTable).values({
+        sessionId: newSession.id,
+        role: 'user',
+        type: 'text',
+        content: { text: content }
+    });
+
+    return c.json(newSession, 201);
+});
 export default chatRoutes;

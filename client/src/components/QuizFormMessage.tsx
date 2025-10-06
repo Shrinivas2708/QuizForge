@@ -20,8 +20,9 @@ export function QuizFormMessage({ message }: QuizFormMessageProps) {
   const queryClient = useQueryClient();
   const { data: source, error } = useSourceStatus(sourceId);
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
-  
+
   const generateQuiz = useGenerateQuiz({
+
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['chat'] });
     }
@@ -64,7 +65,10 @@ export function QuizFormMessage({ message }: QuizFormMessageProps) {
                     </SelectContent>
                 </Select>
                 <Button 
-                    onClick={() => generateQuiz.mutate({ sourceId, title, config: { difficulty, questionCount: 10, questionTypes: ["multiple_choice"] } })} 
+                    onClick={() => generateQuiz.mutate({
+                      sourceId, title, config: { difficulty, questionCount: 10, questionTypes: ["multiple_choice"] },
+                      sessionId: ""
+                    })} 
                     disabled={generateQuiz.isPending}
                 >
                     Generate

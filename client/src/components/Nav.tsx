@@ -6,44 +6,48 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"; //
 import { sidebarRoutes } from "@/lib/exports";
 
 export default function Nav() {
-  
-    const routerState = useRouterState()
-  
-  const isAuthenticatedRoute  = sidebarRoutes.some((route) =>
-      routerState.location.pathname.startsWith(route),
-    )
-  
+  const routerState = useRouterState();
+
+  const isAuthenticatedRoute = sidebarRoutes.some((route) =>
+    routerState.location.pathname.startsWith(route),
+  );
+
   const { isAuthenticated, user, isLoading } = useAuth();
-  const navigate = useNavigate()
+  const navigate = useNavigate();
   return (
-    <div className={`w-full  py-3 px-5 flex  items-center ${isAuthenticatedRoute ? "justify-end":"border-b justify-between" }`}>
-      {
-        isAuthenticatedRoute ? "": <Link to="/">
-        <p className="font-logo text-2xl font-extrabold cursor-pointer hover:text-foreground/80">
-          QuizForge
-        </p>
-      </Link>
-      }
-      <div className="flex gap-3 items-center">
-        <ThemeButton/>
+    <div
+      className={`flex w-full items-center px-5 py-3 ${isAuthenticatedRoute ? "justify-end" : "justify-between"}`}
+    >
+      {isAuthenticatedRoute ? (
+        ""
+      ) : (
+        <Link to="/">
+          <p className="font-logo hover:text-foreground/80 cursor-pointer text-2xl font-extrabold">
+            QuizForge
+          </p>
+        </Link>
+      )}
+      <div className="flex items-center gap-3">
+        <ThemeButton />
         {isLoading ? (
-          <div className="w-24 h-9 bg-muted animate-pulse rounded-md" /> // Loading skeleton
+          <div className="bg-muted h-9 w-24 animate-pulse rounded-md" /> // Loading skeleton
         ) : isAuthenticated && user ? (
           // You can create a dropdown menu for profile/logout here
-          <Avatar onClick={
-            ()=>{
-              navigate({to:"/profile"})
-            }
-          }
-          className="cursor-pointer size-9"
+          <Avatar
+            onClick={() => {
+              navigate({ to: "/profile" });
+            }}
+            className="size-9 cursor-pointer"
           >
-            <AvatarImage src={user.image || ''} alt={user.name} />
+            <AvatarImage src={user.image || ""} alt={user.name} />
             <AvatarFallback>{user.name?.charAt(0)}</AvatarFallback>
           </Avatar>
         ) : (
           <>
             <Link to="/login">
-              <Button variant={'outline'} className="cursor-pointer">Login</Button>
+              <Button variant={"outline"} className="cursor-pointer">
+                Login
+              </Button>
             </Link>
             <Link to="/signup">
               <Button className="cursor-pointer">Get Started</Button>
@@ -52,5 +56,5 @@ export default function Nav() {
         )}
       </div>
     </div>
-  )
+  );
 }
