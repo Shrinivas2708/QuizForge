@@ -32,7 +32,7 @@ import { QuizConfigMessage } from "@/components/QuizConfigMessage";
 import { useSourceStatus } from "@/hooks/useSourceStatus";
 import { ProcessingMessage } from "@/components/ProcessingMessage";
 import { QuizGeneratedMessage } from "@/components/QuizInteractionMessage";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useUploadFile } from "@/hooks/useUploadFile";
 import { toast } from "sonner";
 
@@ -54,6 +54,7 @@ export const Route = createFileRoute("/_authenticated/chat/$chatId")({
 });
 
 function ChatComponent() {
+  const [currentMessage, setCurrentMessage] = useState<string>("");
   const { chatId } = Route.useParams();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -179,7 +180,7 @@ function ChatComponent() {
   const showProcessing = latestSource && sourceStatus?.status === "processing";
 
   return (
-    <div className="flex h-full flex-col scrollbar" ref={chatRef} >
+    <div className="scrollbar flex h-full flex-col" ref={chatRef}>
       {/* Scrollable conversation area - takes remaining space */}
       <div className="min-h-0 flex-1">
         <Conversation className="h-full">
@@ -213,59 +214,74 @@ function ChatComponent() {
 
       {/* Fixed prompt input at bottom */}
 
-      <PromptInput
-        accept=".pdf"
-        maxFiles={1}
-        maxFileSize={10 * 1024 * 1024}
-        onSubmit={(message) => {
-          if (message.files && message.files.length > 0) {
-            const file = message.files[0];
-            fetch(file.url!)
-              .then((res) => res.blob())
-              .then((blob) => {
-                const actualFile = new File([blob], file.filename!, {
-                  type: "application/pdf",
+      <div className="pb-5">
+        <PromptInput
+          accept=".pdf"
+          maxFiles={1}
+          maxFileSize={10 * 1024 * 1024}
+          onSubmit={(message) => {
+            if (message.files && message.files.length > 0) {
+              const file = message.files[0];
+              fetch(file.url!)
+                .then((res) => res.blob())
+                .then((blob) => {
+                  const actualFile = new File([blob], file.filename!, {
+                    type: "application/pdf",
+                  });
+                  uploadFile.mutate({
+                    file: actualFile,
+                    title: file.filename!,
+                    replaceSession: chatId,
+                  });
                 });
-                uploadFile.mutate({
-                  file: actualFile,
-                  title: file.filename!,
-                  replaceSession: chatId,
-                });
-              });
-          } else if (message.text) {
-            handleSendMessage(message.text);
-          }
-        }}
-        onError={(err) => {
-          if ("message" in err) {
-            toast.error(err.message);
-          } else {
-            toast.error("An unexpected error occurred.");
-          }
-        }}
-        className="mx-auto max-w-3xl"
-      >
-        <PromptInputBody>
-          <PromptInputTextarea
-            placeholder="Ask a question or attach a PDF document..."
-            disabled={sendMessageMutation.isPending || showProcessing}
-          />
-          <PromptInputToolbar>
-            <PromptInputTools>
-              <PromptInputActionMenu>
-                <PromptInputActionMenuTrigger />
-                <PromptInputActionMenuContent>
-                  <PromptInputActionAddAttachments label="Upload PDF Document" />
-                </PromptInputActionMenuContent>
-              </PromptInputActionMenu>
-            </PromptInputTools>
-            <PromptInputSubmit
-              status={sendMessageMutation.isPending ? "submitted" : "ready"}
+            } else if (message.text) {
+              // Ensure the controlled input matches the submitted text
+              setCurrentMessage(message.text);
+              // Use per-mutation callbacks so we only clear the input on success
+              sendMessageMutation.mutate(
+                { chatId, content: message.text },
+                {
+                  onSuccess: () => setCurrentMessage(""),
+                  onError: () => {
+                    // keep the user's text in the input so they can retry/edit
+                  },
+                },
+              );
+            }
+          }}
+          onError={(err) => {
+            if ("message" in err) {
+              toast.error(err.message);
+            } else {
+              toast.error("An unexpected error occurred.");
+            }
+          }}
+          className="mx-auto max-w-3xl"
+        >
+          <PromptInputBody>
+            <PromptInputTextarea
+              placeholder="Ask a question or attach a PDF document..."
               disabled={sendMessageMutation.isPending || showProcessing}
+              value={currentMessage}
+              onChange={(e) => setCurrentMessage(e.currentTarget.value)}
             />
-          </PromptInputToolbar>
-        </PromptInputBody>
-      </PromptInput>
+            <PromptInputToolbar>
+              <PromptInputTools>
+                <PromptInputActionMenu>
+                  <PromptInputActionMenuTrigger />
+                  <PromptInputActionMenuContent>
+                    <PromptInputActionAddAttachments label="Upload PDF Document" />
+                  </PromptInputActionMenuContent>
+                </PromptInputActionMenu>
+              </PromptInputTools>
+              <PromptInputSubmit
+                status={sendMessageMutation.isPending ? "submitted" : "ready"}
+                disabled={sendMessageMutation.isPending || showProcessing}
+              />
+            </PromptInputToolbar>
+          </PromptInputBody>
+        </PromptInput>
+      </div>
     </div>
   );
 }
