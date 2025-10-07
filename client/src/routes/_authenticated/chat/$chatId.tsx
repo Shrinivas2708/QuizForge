@@ -92,10 +92,7 @@ function ChatComponent() {
 
   const sendMessageMutation = useSendMessage();
 
-  const handleSendMessage = (text: string) => {
-    if (!text.trim()) return;
-    sendMessageMutation.mutate({ chatId, content: text });
-  };
+ 
 
   const renderMessage = (message: ChatMessage) => {
     switch (message.type) {
