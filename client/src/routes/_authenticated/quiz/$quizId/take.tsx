@@ -1,9 +1,13 @@
-import { createFileRoute } from '@tanstack/react-router'
+// client/src/routes/_authenticated/quiz/$quizId/take.tsx
 
-export const Route = createFileRoute('/_authenticated/quiz/$quizId/take')({
+import { createFileRoute } from "@tanstack/react-router";
+import { QuizTakingScreen } from "@/components/QuizTakingScreen";
+
+export const Route = createFileRoute("/_authenticated/quiz/$quizId/take")({
   component: RouteComponent,
-})
+});
 
 function RouteComponent() {
-  return <div>Hello "/_authenticated/quiz/$quizId/take"!</div>
+  const { quizId } = Route.useParams();
+  return <QuizTakingScreen quizId={quizId} />;
 }

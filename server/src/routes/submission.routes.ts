@@ -1,15 +1,16 @@
+// server/src/routes/submission.routes.ts - Improved version
+
 import { Hono } from "hono";
 import { getDb } from "../db";
-import type { AppEnv, DbInstance } from "../types";
-import { submissionsTable, answersTable, proctoringEventsTable, questionsTable } from "../db/schema";
-import { eq, and, sql } from "drizzle-orm";
 import { createAuth } from "../utils/auth";
+import type { AppEnv, DbInstance } from "../types";
+import { submissionsTable, answersTable, proctoringEventsTable, questionsTable, roomsTable, participantsTable, quizzesTable } from "../db/schema";
+import { eq, and, sql } from "drizzle-orm";
+import { nanoid } from "nanoid";
 
 const submissionRoutes = new Hono<AppEnv>();
 
-// A helper to verify that the submission belongs to the participant making the request.
-// In a real app, this would be done by decoding a JWT.
-const verifyParticipant = async (db :DbInstance, participantId:string, submissionId :string) => {
+const verifyParticipant = async (db: DbInstance, participantId: string, submissionId: string) => {
     return await db.query.submissionsTable.findFirst({
         where: and(eq(submissionsTable.id, submissionId), eq(submissionsTable.participantId, participantId))
     });
@@ -17,145 +18,287 @@ const verifyParticipant = async (db :DbInstance, participantId:string, submissio
 
 // POST /api/submissions/start - Start a quiz attempt
 submissionRoutes.post("/start", async (c) => {
-    const db = getDb(c.env.DATABASE_URL);
-    const { participantId, quizId } = await c.req.json();
+    try {
+        const db = getDb(c.env.DATABASE_URL);
+        const auth = createAuth(c.env, db);
+        const session = await auth.api.getSession({ headers: c.req.raw.headers });
 
-    if (!participantId || !quizId) {
-        return c.json({ error: "participantId and quizId are required" }, 400);
+        if (!session?.user?.id) {
+            return c.json({ error: "Unauthorized" }, 401);
+        }
+
+        const { quizId } = await c.req.json();
+        if (!quizId) {
+            return c.json({ error: "quizId is required" }, 400);
+        }
+
+        // Verify quiz exists
+        const quiz = await db.query.quizzesTable.findFirst({
+            where: eq(quizzesTable.id, quizId),
+        });
+
+        if (!quiz) {
+            return c.json({ error: "Quiz not found" }, 404);
+        }
+
+        // Find or create room
+        let room = await db.query.roomsTable.findFirst({
+            where: eq(roomsTable.id, quizId),
+        });
+
+        if (!room) {
+            const inserted = await db.insert(roomsTable).values({
+                id: quizId,
+                shareableCode: nanoid(8),
+            }).returning();
+            room = inserted[0];
+        }
+
+        // Create participant
+        const participantInserted = await db.insert(participantsTable).values({
+            roomId: room.id,
+            details: {
+                name: session.user.name || "User",
+                email: session.user.email,
+                userId: session.user.id,
+            },
+        }).returning();
+        const participant = participantInserted[0];
+
+        // Get existing submission count
+        const existingSubmissions = await db
+            .select()
+            .from(submissionsTable)
+            .where(
+                and(
+                    eq(submissionsTable.participantId, participant.id),
+                    eq(submissionsTable.quizId, quizId)
+                )
+            );
+
+        // Create submission
+        const submissionInserted = await db.insert(submissionsTable).values({
+            participantId: participant.id,
+            quizId,
+            attemptNumber: existingSubmissions.length + 1,
+        }).returning();
+        const submission = submissionInserted[0];
+
+        // Get questions (without correct answers)
+        const questions = await db
+            .select({
+                id: questionsTable.id,
+                questionType: questionsTable.questionType,
+                questionText: questionsTable.questionText,
+                data: questionsTable.data,
+            })
+            .from(questionsTable)
+            .where(eq(questionsTable.quizId, quizId));
+
+        const questionsForParticipant = questions.map(q => ({
+            ...q,
+            data: { options: q.data.options }
+        }));
+
+        return c.json({ submission, questions: questionsForParticipant }, 201);
+    } catch (error) {
+        console.error("Error starting submission:", error);
+        return c.json({ error: "Failed to start submission" }, 500);
     }
-
-    const existingSubmissions = await db.select().from(submissionsTable).where(
-        and(eq(submissionsTable.participantId, participantId), eq(submissionsTable.quizId, quizId))
-    );
-
-    const submission = await db.insert(submissionsTable).values({
-        participantId,
-        quizId,
-        attemptNumber: existingSubmissions.length + 1,
-    }).returning().then(res => res[0]);
-
-    const questions = await db.select({
-        id: questionsTable.id,
-        questionType: questionsTable.questionType,
-        questionText: questionsTable.questionText,
-        data: questionsTable.data, // This contains options but also the correct answer
-    }).from(questionsTable).where(eq(questionsTable.quizId, quizId));
-
-    // Omit correctAnswer from the data sent to the client
-    const questionsForParticipant = questions.map(q => ({
-        ...q,
-        data: { options: q.data.options }
-    }));
-    
-    return c.json({ submission, questions: questionsForParticipant }, 201);
 });
 
 // POST /api/submissions/:submissionId/answer - Submit an answer
 submissionRoutes.post("/:submissionId/answer", async (c) => {
-    const db = getDb(c.env.DATABASE_URL);
-    const { submissionId } = c.req.param();
-    const { questionId, givenAnswer, participantId } = await c.req.json();
-    
-    const submission = await verifyParticipant(db, participantId, submissionId);
-    if (!submission) return c.json({ error: "Submission not found or access denied" }, 404);
+    try {
+        const db = getDb(c.env.DATABASE_URL);
+        const { submissionId } = c.req.param();
+        const { questionId, givenAnswer, participantId } = await c.req.json();
 
-    const question = await db.query.questionsTable.findFirst({ where: eq(questionsTable.id, questionId) });
-    if (!question) return c.json({ error: "Question not found" }, 404);
+        if (!questionId || !givenAnswer || !participantId) {
+            return c.json({ error: "Missing required fields" }, 400);
+        }
 
-    const isCorrect = question.data.correctAnswer === givenAnswer;
+        const submission = await verifyParticipant(db, participantId, submissionId);
+        if (!submission) {
+            return c.json({ error: "Submission not found or access denied" }, 404);
+        }
 
-    await db.insert(answersTable).values({
-        submissionId,
-        questionId,
-        givenAnswer,
-        isCorrect,
-    }).onConflictDoUpdate({
-        target: [answersTable.submissionId, answersTable.questionId],
-        set: { givenAnswer, isCorrect }
-    });
+        if (submission.completedAt) {
+            return c.json({ error: "Cannot submit answer for completed submission" }, 400);
+        }
 
-    return c.json({ success: true, isCorrect });
+        const question = await db.query.questionsTable.findFirst({
+            where: eq(questionsTable.id, questionId)
+        });
+
+        if (!question) {
+            return c.json({ error: "Question not found" }, 404);
+        }
+
+        const isCorrect = question.data.correctAnswer === givenAnswer;
+
+        await db.insert(answersTable)
+            .values({
+                submissionId,
+                questionId,
+                givenAnswer,
+                isCorrect,
+            })
+            .onConflictDoUpdate({
+                target: [answersTable.submissionId, answersTable.questionId],
+                set: { givenAnswer, isCorrect }
+            });
+
+        return c.json({ success: true, isCorrect });
+    } catch (error) {
+        console.error("Error submitting answer:", error);
+        return c.json({ error: "Failed to submit answer" }, 500);
+    }
 });
 
 // POST /api/submissions/:submissionId/finish - Finish the quiz
 submissionRoutes.post("/:submissionId/finish", async (c) => {
-    const db = getDb(c.env.DATABASE_URL);
-    const { submissionId } = c.req.param();
-    const { participantId } = await c.req.json();
+    try {
+        const db = getDb(c.env.DATABASE_URL);
+        const { submissionId } = c.req.param();
+        const { participantId } = await c.req.json();
 
-    const submission = await verifyParticipant(db, participantId, submissionId);
-    if (!submission) return c.json({ error: "Submission not found or access denied" }, 404);
-    if (submission.completedAt) return c.json({ error: "Submission already completed" }, 400);
-
-    const [{ count: correctAnswersCount }] = await db.select({
-        count: sql<number>`count(*)`
-    }).from(answersTable).where(and(eq(answersTable.submissionId, submissionId), eq(answersTable.isCorrect, true)));
-
-    const [{ count: totalQuestionsCount }] = await db.select({
-        count: sql<number>`count(*)`
-    }).from(questionsTable).where(eq(questionsTable.quizId, submission.quizId));
-
-    const finalScore = totalQuestionsCount > 0 ? Math.round((correctAnswersCount / totalQuestionsCount) * 100) : 0;
-    
-    const completedAt = new Date();
-    const durationSeconds = Math.round((completedAt.getTime() - new Date(submission.startedAt!).getTime()) / 1000);
-
-    const updatedSubmission = await db.update(submissionsTable).set({
-        finalScore,
-        completedAt,
-        durationSeconds,
-    }).where(eq(submissionsTable.id, submissionId)).returning().then(res => res[0]);
-
-    return c.json(updatedSubmission);
-});
-
-// GET /api/submissions/:submissionId/results - Get results for a submission
-submissionRoutes.get("/:submissionId/results", async (c) => {
-    const db = getDb(c.env.DATABASE_URL);
-    const { submissionId } = c.req.param();
-    // In a real app, authenticate the participant here
-    
-    const submission = await db.query.submissionsTable.findFirst({
-        where: eq(submissionsTable.id, submissionId),
-    });
-
-    if (!submission || !submission.completedAt) {
-        return c.json({ error: "Submission not found or not yet completed" }, 404);
-    }
-
-    const answers = await db.query.answersTable.findMany({
-        where: eq(answersTable.submissionId, submissionId),
-        with: {
-            question: {
-                columns: {
-                    questionText: true,
-                    feedback: true,
-                    data: true // Includes correct answer for review
-                }
-            },
+        if (!participantId) {
+            return c.json({ error: "participantId is required" }, 400);
         }
-    });
 
-    return c.json({ ...submission, answers });
+        const submission = await verifyParticipant(db, participantId, submissionId);
+        if (!submission) {
+            return c.json({ error: "Submission not found or access denied" }, 404);
+        }
+
+        if (submission.completedAt) {
+            return c.json({ error: "Submission already completed" }, 400);
+        }
+
+        // Calculate score
+        const [{ count: correctAnswersCount }] = await db
+            .select({ count: sql<number>`count(*)::int` })
+            .from(answersTable)
+            .where(
+                and(
+                    eq(answersTable.submissionId, submissionId),
+                    eq(answersTable.isCorrect, true)
+                )
+            );
+
+        const [{ count: totalQuestionsCount }] = await db
+            .select({ count: sql<number>`count(*)::int` })
+            .from(questionsTable)
+            .where(eq(questionsTable.quizId, submission.quizId));
+
+        const finalScore = totalQuestionsCount > 0 
+            ? Math.round((Number(correctAnswersCount) / Number(totalQuestionsCount)) * 100) 
+            : 0;
+
+        const completedAt = new Date();
+        const durationSeconds = Math.round(
+            (completedAt.getTime() - new Date(submission.startedAt!).getTime()) / 1000
+        );
+
+        const [updatedSubmission] = await db
+            .update(submissionsTable)
+            .set({
+                finalScore,
+                completedAt,
+                durationSeconds,
+                finished: true,
+            })
+            .where(eq(submissionsTable.id, submissionId))
+            .returning();
+
+        return c.json(updatedSubmission);
+    } catch (error) {
+        console.error("Error finishing submission:", error);
+        return c.json({ error: "Failed to finish submission" }, 500);
+    }
 });
 
+// GET /api/submissions/:submissionId/results - Get results
+// GET /api/submissions/:submissionId/results - Get results
+submissionRoutes.get("/:submissionId/results", async (c) => {
+  try {
+      const db = getDb(c.env.DATABASE_URL);
+      const { submissionId } = c.req.param();
 
-// POST /api/submissions/:submissionId/proctoring - Log a proctoring event
+      const submission = await db.query.submissionsTable.findFirst({
+          where: eq(submissionsTable.id, submissionId),
+      });
+
+      if (!submission || !submission.completedAt) {
+          return c.json({ error: "Submission not found or not yet completed" }, 404);
+      }
+      
+      // 1. Fetch ALL questions for the quiz
+      const allQuestions = await db.query.questionsTable.findMany({
+          where: eq(questionsTable.quizId, submission.quizId),
+          columns: {
+              id: true,
+              questionText: true,
+              feedback: true,
+              data: true,
+          }
+      });
+
+      // 2. Fetch the answers that were submitted
+      const submittedAnswers = await db.query.answersTable.findMany({
+          where: eq(answersTable.submissionId, submissionId),
+      });
+
+      // 3. Create a lookup map for submitted answers
+      const answersMap = new Map(submittedAnswers.map(ans => [ans.questionId, ans]));
+
+      // 4. Combine questions with their answers
+      const resultsWithUnattempted = allQuestions.map(question => {
+          const answer = answersMap.get(question.id);
+          return {
+              question: question, // Contains correct answer, text, etc.
+              // Spread the answer if it exists, otherwise provide default values
+              ...(answer || { questionId: question.id, givenAnswer: null, isCorrect: false })
+          };
+      });
+
+      return c.json({ ...submission, answers: resultsWithUnattempted });
+  } catch (error) {
+      console.error("Error fetching results:", error);
+      return c.json({ error: "Failed to fetch results" }, 500);
+  }
+});
+
+// POST /api/submissions/:submissionId/proctoring - Log proctoring event
 submissionRoutes.post("/:submissionId/proctoring", async (c) => {
-    const db = getDb(c.env.DATABASE_URL);
-    const { submissionId } = c.req.param();
-    const { eventType, details, participantId } = await c.req.json();
+    try {
+        const db = getDb(c.env.DATABASE_URL);
+        const { submissionId } = c.req.param();
+        const { eventType, details, participantId } = await c.req.json();
 
-    const submission = await verifyParticipant(db, participantId, submissionId);
-    if (!submission) return c.json({ error: "Submission not found or access denied" }, 404);
+        if (!eventType || !participantId) {
+            return c.json({ error: "Missing required fields" }, 400);
+        }
 
-    const event = await db.insert(proctoringEventsTable).values({
-        submissionId,
-        eventType,
-        details,
-    }).returning().then(res => res[0]);
+        const submission = await verifyParticipant(db, participantId, submissionId);
+        if (!submission) {
+            return c.json({ error: "Submission not found or access denied" }, 404);
+        }
 
-    return c.json(event, 201);
+        const [event] = await db.insert(proctoringEventsTable)
+            .values({
+                submissionId,
+                eventType,
+                details,
+            })
+            .returning();
+
+        return c.json(event, 201);
+    } catch (error) {
+        console.error("Error logging proctoring event:", error);
+        return c.json({ error: "Failed to log proctoring event" }, 500);
+    }
 });
 
 export default submissionRoutes;

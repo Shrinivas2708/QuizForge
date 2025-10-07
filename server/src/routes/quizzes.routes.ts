@@ -2,8 +2,8 @@ import { Hono } from "hono";
 import { getDb } from "../db";
 import { createAuth } from "../utils/auth";
 import type { AppEnv } from "../types";
-import { quizzesTable, questionsTable, sourcesTable, chatMessagesTable } from "../db/schema";
-import { eq, and } from "drizzle-orm";
+import { quizzesTable, questionsTable, sourcesTable, chatMessagesTable, submissionsTable, participantsTable } from "../db/schema";
+import { eq, and, sql, desc } from "drizzle-orm";
 import { generateQuizFromContent } from "../services/langchain.service";
 
 const quizRoutes = new Hono<AppEnv>();
@@ -72,6 +72,7 @@ quizRoutes.post("/", async (c) => {
 
     return c.json({ ...newQuiz, questions: questionsToInsert }, 201);
 });
+quizRoutes.get("/get-questions")
 
 // GET /api/quizzes - Get all quizzes for the logged-in user
 quizRoutes.get("/", async (c) => {
@@ -112,6 +113,112 @@ quizRoutes.get("/:quizId", async (c) => {
     const questions = await db.select().from(questionsTable).where(eq(questionsTable.quizId, quizId));
     
     return c.json({ ...quiz, questions });
+});
+quizRoutes.get("/:quizId/take", async (c) => {
+    const db = getDb(c.env.DATABASE_URL);
+    const auth = createAuth(c.env, db);
+    const session = await auth.api.getSession({ headers: c.req.raw.headers });
+    const { quizId } = c.req.param();
+
+    if (!session?.user?.id) {
+        return c.json({ error: "Unauthorized" }, 401);
+    }
+
+    const quiz = await db.select().from(quizzesTable).where(
+        and(
+            eq(quizzesTable.id, quizId),
+            eq(quizzesTable.ownerId, session.user.id)
+        )
+    ).then(res => res[0]);
+
+    if (!quiz) {
+        return c.json({ error: "Quiz not found" }, 404);
+    }
+
+    const questions = await db.select().from(questionsTable).where(eq(questionsTable.quizId, quizId));
+
+    // Omit the correct answer from the questions
+    const questionsForQuiz = questions.map(({ data, ...question }) => ({
+        ...question,
+        data: {
+            options: data.options,
+        },
+    }));
+
+    return c.json({ ...quiz, questions: questionsForQuiz });
+});
+// GET /api/quizzes/:quizId/my-attempts
+quizRoutes.get("/:quizId/my-attempts", async (c) => {
+  try {
+      const db = getDb(c.env.DATABASE_URL);
+      const auth = createAuth(c.env, db);
+      const session = await auth.api.getSession({ headers: c.req.raw.headers });
+      
+      if (!session?.user?.id) {
+          return c.json({ error: "Unauthorized" }, 401);
+      }
+
+      const { quizId } = c.req.param();
+      
+      // Find all submissions by joining through participants to find the user
+      const attempts = await db
+          .select({
+              id: submissionsTable.id,
+              finalScore: submissionsTable.finalScore,
+              completedAt: submissionsTable.completedAt,
+              attemptNumber: submissionsTable.attemptNumber
+          })
+          .from(submissionsTable)
+          .innerJoin(participantsTable, eq(submissionsTable.participantId, participantsTable.id))
+          .where(
+            and(
+              eq(submissionsTable.quizId, quizId),
+              // This is how you query a value within a JSONB column
+              sql`${participantsTable.details}->>'userId' = ${session.user.id}`,
+              eq(submissionsTable.finished, true)
+            )
+          )
+          .orderBy(desc(submissionsTable.attemptNumber));
+
+      return c.json(attempts);
+  } catch (error) {
+      console.error("Error fetching attempts:", error);
+      return c.json({ error: "Failed to fetch attempts" }, 500);
+  }
+});
+quizRoutes.get("/:quizId/my-attempts/count", async (c) => {
+  try {
+    const db = getDb(c.env.DATABASE_URL);
+    const auth = createAuth(c.env, db);
+    const session = await auth.api.getSession({ headers: c.req.raw.headers });
+
+    if (!session?.user?.id) {
+      return c.json({ count: 0 }); // Not logged in, no attempts
+    }
+
+    const { quizId } = c.req.param();
+
+    // Perform a query to count the submissions
+    const [{ count }] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(submissionsTable)
+      .innerJoin(
+        participantsTable,
+        eq(submissionsTable.participantId, participantsTable.id),
+      )
+      .where(
+        and(
+          eq(submissionsTable.quizId, quizId),
+          sql`${participantsTable.details}->>'userId' = ${session.user.id}`,
+          eq(submissionsTable.finished, true),
+        ),
+      );
+
+    return c.json({ count });
+  } catch (error) {
+    console.error("Error fetching attempt count:", error);
+    return c.json({ error: "Failed to fetch attempt count" }, 500);
+  }
 });
 
 export default quizRoutes;

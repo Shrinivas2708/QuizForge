@@ -18,6 +18,8 @@ import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedNewRouteImport } from './routes/_authenticated/new'
 import { Route as AuthenticatedChatChatIdRouteImport } from './routes/_authenticated/chat/$chatId'
 import { Route as AuthenticatedQuizQuizIdTakeRouteImport } from './routes/_authenticated/quiz/$quizId/take'
+import { Route as AuthenticatedQuizQuizIdResultsRouteImport } from './routes/_authenticated/quiz/$quizId/results'
+import { Route as AuthenticatedQuizQuizIdAttemptsRouteImport } from './routes/_authenticated/quiz/$quizId/attempts'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -64,6 +66,18 @@ const AuthenticatedQuizQuizIdTakeRoute =
     path: '/quiz/$quizId/take',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedQuizQuizIdResultsRoute =
+  AuthenticatedQuizQuizIdResultsRouteImport.update({
+    id: '/quiz/$quizId/results',
+    path: '/quiz/$quizId/results',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedQuizQuizIdAttemptsRoute =
+  AuthenticatedQuizQuizIdAttemptsRouteImport.update({
+    id: '/quiz/$quizId/attempts',
+    path: '/quiz/$quizId/attempts',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -73,6 +87,8 @@ export interface FileRoutesByFullPath {
   '/new': typeof AuthenticatedNewRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/chat/$chatId': typeof AuthenticatedChatChatIdRoute
+  '/quiz/$quizId/attempts': typeof AuthenticatedQuizQuizIdAttemptsRoute
+  '/quiz/$quizId/results': typeof AuthenticatedQuizQuizIdResultsRoute
   '/quiz/$quizId/take': typeof AuthenticatedQuizQuizIdTakeRoute
 }
 export interface FileRoutesByTo {
@@ -83,6 +99,8 @@ export interface FileRoutesByTo {
   '/new': typeof AuthenticatedNewRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/chat/$chatId': typeof AuthenticatedChatChatIdRoute
+  '/quiz/$quizId/attempts': typeof AuthenticatedQuizQuizIdAttemptsRoute
+  '/quiz/$quizId/results': typeof AuthenticatedQuizQuizIdResultsRoute
   '/quiz/$quizId/take': typeof AuthenticatedQuizQuizIdTakeRoute
 }
 export interface FileRoutesById {
@@ -95,6 +113,8 @@ export interface FileRoutesById {
   '/_authenticated/new': typeof AuthenticatedNewRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/chat/$chatId': typeof AuthenticatedChatChatIdRoute
+  '/_authenticated/quiz/$quizId/attempts': typeof AuthenticatedQuizQuizIdAttemptsRoute
+  '/_authenticated/quiz/$quizId/results': typeof AuthenticatedQuizQuizIdResultsRoute
   '/_authenticated/quiz/$quizId/take': typeof AuthenticatedQuizQuizIdTakeRoute
 }
 export interface FileRouteTypes {
@@ -107,6 +127,8 @@ export interface FileRouteTypes {
     | '/new'
     | '/profile'
     | '/chat/$chatId'
+    | '/quiz/$quizId/attempts'
+    | '/quiz/$quizId/results'
     | '/quiz/$quizId/take'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -117,6 +139,8 @@ export interface FileRouteTypes {
     | '/new'
     | '/profile'
     | '/chat/$chatId'
+    | '/quiz/$quizId/attempts'
+    | '/quiz/$quizId/results'
     | '/quiz/$quizId/take'
   id:
     | '__root__'
@@ -128,6 +152,8 @@ export interface FileRouteTypes {
     | '/_authenticated/new'
     | '/_authenticated/profile'
     | '/_authenticated/chat/$chatId'
+    | '/_authenticated/quiz/$quizId/attempts'
+    | '/_authenticated/quiz/$quizId/results'
     | '/_authenticated/quiz/$quizId/take'
   fileRoutesById: FileRoutesById
 }
@@ -204,6 +230,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedQuizQuizIdTakeRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/quiz/$quizId/results': {
+      id: '/_authenticated/quiz/$quizId/results'
+      path: '/quiz/$quizId/results'
+      fullPath: '/quiz/$quizId/results'
+      preLoaderRoute: typeof AuthenticatedQuizQuizIdResultsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/quiz/$quizId/attempts': {
+      id: '/_authenticated/quiz/$quizId/attempts'
+      path: '/quiz/$quizId/attempts'
+      fullPath: '/quiz/$quizId/attempts'
+      preLoaderRoute: typeof AuthenticatedQuizQuizIdAttemptsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
   }
 }
 
@@ -211,6 +251,8 @@ interface AuthenticatedRouteChildren {
   AuthenticatedNewRoute: typeof AuthenticatedNewRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedChatChatIdRoute: typeof AuthenticatedChatChatIdRoute
+  AuthenticatedQuizQuizIdAttemptsRoute: typeof AuthenticatedQuizQuizIdAttemptsRoute
+  AuthenticatedQuizQuizIdResultsRoute: typeof AuthenticatedQuizQuizIdResultsRoute
   AuthenticatedQuizQuizIdTakeRoute: typeof AuthenticatedQuizQuizIdTakeRoute
 }
 
@@ -218,6 +260,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedNewRoute: AuthenticatedNewRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedChatChatIdRoute: AuthenticatedChatChatIdRoute,
+  AuthenticatedQuizQuizIdAttemptsRoute: AuthenticatedQuizQuizIdAttemptsRoute,
+  AuthenticatedQuizQuizIdResultsRoute: AuthenticatedQuizQuizIdResultsRoute,
   AuthenticatedQuizQuizIdTakeRoute: AuthenticatedQuizQuizIdTakeRoute,
 }
 

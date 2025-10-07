@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
   pgTable,
   varchar,
@@ -172,6 +172,7 @@ export const participantInfoEnum = pgEnum("participant_info", [
   "email",
 ]);
 export const proctoringLevelEnum = pgEnum("proctoring_level", [
+  "none", // New option
   "basic",
   "strict",
 ]);
@@ -229,6 +230,7 @@ export const submissionsTable = pgTable("submissions", {
   completedAt: timestamp("completed_at"),
   durationSeconds: integer("duration_seconds"), // NEW
   disqualified: boolean("disqualified").default(false),
+  finished: boolean("finished").default(false)
 });
 
 // here we score the answers from the submissions and for the questions and store if the ans is correct or not
@@ -345,3 +347,164 @@ export const feedbackTable = pgTable("feedback", {
   comment: text("comment"),
   createdAt: timestamp("created_at").defaultNow(),
 });
+export const chatSessionsRelations = relations(chatSessionsTable, ({ one, many }) => ({
+	user: one(usersTable, {
+		fields: [chatSessionsTable.userId],
+		references: [usersTable.id],
+	}),
+	messages: many(chatMessagesTable),
+}));
+
+export const chatMessagesRelations = relations(chatMessagesTable, ({ one }) => ({
+	session: one(chatSessionsTable, {
+		fields: [chatMessagesTable.sessionId],
+		references: [chatSessionsTable.id],
+	}),
+}));
+export const answersRelations = relations(answersTable, ({ one }) => ({
+  submission: one(submissionsTable, {
+    fields: [answersTable.submissionId],
+    references: [submissionsTable.id],
+  }),
+  question: one(questionsTable, {
+    fields: [answersTable.questionId],
+    references: [questionsTable.id],
+  }),
+}));
+
+// Relations for submissions table
+export const submissionsRelations = relations(submissionsTable, ({ one, many }) => ({
+  participant: one(participantsTable, {
+    fields: [submissionsTable.participantId],
+    references: [participantsTable.id],
+  }),
+  quiz: one(quizzesTable, {
+    fields: [submissionsTable.quizId],
+    references: [quizzesTable.id],
+  }),
+  answers: many(answersTable),
+  proctoringEvents: many(proctoringEventsTable),
+}));
+
+// Relations for questions table
+export const questionsRelations = relations(questionsTable, ({ one, many }) => ({
+  quiz: one(quizzesTable, {
+    fields: [questionsTable.quizId],
+    references: [quizzesTable.id],
+  }),
+  answers: many(answersTable),
+}));
+
+// Relations for quizzes table
+export const quizzesRelations = relations(quizzesTable, ({ one, many }) => ({
+  owner: one(usersTable, {
+    fields: [quizzesTable.ownerId],
+    references: [usersTable.id],
+  }),
+  source: one(sourcesTable, {
+    fields: [quizzesTable.sourceId],
+    references: [sourcesTable.id],
+  }),
+  questions: many(questionsTable),
+  submissions: many(submissionsTable),
+  room: one(roomsTable),
+}));
+
+// Relations for participants table
+export const participantsRelations = relations(participantsTable, ({ one, many }) => ({
+  room: one(roomsTable, {
+    fields: [participantsTable.roomId],
+    references: [roomsTable.id],
+  }),
+  submissions: many(submissionsTable),
+}));
+
+// Relations for rooms table
+export const roomsRelations = relations(roomsTable, ({ one, many }) => ({
+  quiz: one(quizzesTable, {
+    fields: [roomsTable.id],
+    references: [quizzesTable.id],
+  }),
+  participants: many(participantsTable),
+}));
+
+// Relations for proctoring events
+export const proctoringEventsRelations = relations(proctoringEventsTable, ({ one }) => ({
+  submission: one(submissionsTable, {
+    fields: [proctoringEventsTable.submissionId],
+    references: [submissionsTable.id],
+  }),
+}));
+
+// Relations for sources table
+export const sourcesRelations = relations(sourcesTable, ({ one, many }) => ({
+  user: one(usersTable, {
+    fields: [sourcesTable.userId],
+    references: [usersTable.id],
+  }),
+  documents: many(documentsTable),
+  quizzes: many(quizzesTable),
+  chatSessionSources: many(chatSessionSourcesTable),
+}));
+
+// Relations for documents table
+export const documentsRelations = relations(documentsTable, ({ one }) => ({
+  source: one(sourcesTable, {
+    fields: [documentsTable.sourceId],
+    references: [sourcesTable.id],
+  }),
+}));
+
+// Relations for users table
+export const usersRelations = relations(usersTable, ({ many }) => ({
+  accounts: many(accountsTable),
+  sessions: many(sessionsTable),
+  sources: many(sourcesTable),
+  quizzes: many(quizzesTable),
+  chatSessions: many(chatSessionsTable),
+  feedback: many(feedbackTable),
+}));
+
+// Relations for accounts table
+export const accountsRelations = relations(accountsTable, ({ one }) => ({
+  user: one(usersTable, {
+    fields: [accountsTable.userId],
+    references: [usersTable.id],
+  }),
+}));
+
+// Relations for sessions table
+export const sessionsRelations = relations(sessionsTable, ({ one }) => ({
+  user: one(usersTable, {
+    fields: [sessionsTable.userId],
+    references: [usersTable.id],
+  }),
+}));
+
+// Relations for chat session sources
+export const chatSessionSourcesRelations = relations(chatSessionSourcesTable, ({ one }) => ({
+  session: one(chatSessionsTable, {
+    fields: [chatSessionSourcesTable.sessionId],
+    references: [chatSessionsTable.id],
+  }),
+  source: one(sourcesTable, {
+    fields: [chatSessionSourcesTable.sourceId],
+    references: [sourcesTable.id],
+  }),
+}));
+
+// Relations for feedback table
+export const feedbackRelations = relations(feedbackTable, ({ one }) => ({
+  user: one(usersTable, {
+    fields: [feedbackTable.userId],
+    references: [usersTable.id],
+  }),
+  quiz: one(quizzesTable, {
+    fields: [feedbackTable.quizId],
+    references: [quizzesTable.id],
+  }),
+  message: one(chatMessagesTable, {
+    fields: [feedbackTable.messageId],
+    references: [chatMessagesTable.id],
+  }),
+}));
