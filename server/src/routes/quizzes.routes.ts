@@ -166,7 +166,10 @@ quizRoutes.get("/:quizId/my-attempts", async (c) => {
               id: submissionsTable.id,
               finalScore: submissionsTable.finalScore,
               completedAt: submissionsTable.completedAt,
-              attemptNumber: submissionsTable.attemptNumber
+              attemptNumber: submissionsTable.attemptNumber,
+              disqualified:submissionsTable.disqualified,
+              disqualificationReason : submissionsTable.disqualificationReason
+
           })
           .from(submissionsTable)
           .innerJoin(participantsTable, eq(submissionsTable.participantId, participantsTable.id))

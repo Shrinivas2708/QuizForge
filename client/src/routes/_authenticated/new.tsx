@@ -19,6 +19,7 @@ import { useUploadFile } from '@/hooks/useUploadFile'
 import { Spinner } from '@/components/ui/spinner'
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { useCreateTextSource } from '@/hooks/useCreateTextSource'
 
 export const Route = createFileRoute('/_authenticated/new')({
   component: RouteComponent,
@@ -28,29 +29,34 @@ function RouteComponent() {
   const { user } = useAuth()
   const [isChatStarted, setIsChatStarted] = useState(false)
   const uploadFile = useUploadFile()
+ const createTextSource = useCreateTextSource() // Use the new hook
 
-  // This function is passed to PromptInput's onSubmit prop
+  const isProcessing = uploadFile.isPending || createTextSource.isPending
+
   const handleSubmit = async (message: PromptInputMessage) => {
     const filePart = message.files?.[0]
-    if (!filePart || !filePart.url) {
-      toast.error('Please attach a file to start a chat.')
-      return
-    }
+    const textPart = message.text?.trim()
 
-    try {
-      // The PromptInput component provides the file as a data URL.
-      // We convert it back to a File object to send to the server.
-      const response = await fetch(filePart.url)
-      const blob = await response.blob()
-      const file = new File([blob], filePart.filename || 'untitled', {
-        type: filePart.mediaType,
-      })
-
+    if (filePart && filePart.url) {
+      // --- FILE UPLOAD LOGIC (unchanged) ---
+      try {
+        const response = await fetch(filePart.url)
+        const blob = await response.blob()
+        const file = new File([blob], filePart.filename || 'untitled', {
+          type: filePart.mediaType,
+        })
+        setIsChatStarted(true)
+        uploadFile.mutate({ file, title: file.name })
+      } catch (error) {
+        toast.error('There was an error processing the file.')
+        console.error(error)
+      }
+    } else if (textPart) {
+      // --- NEW TEXT SUBMISSION LOGIC ---
       setIsChatStarted(true)
-      uploadFile.mutate({ file, title: file.name })
-    } catch (error) {
-      toast.error('There was an error processing the file.')
-      console.error(error)
+      createTextSource.mutate({ content: textPart })
+    } else {
+      toast.error('Please attach a file or enter a topic to start a chat.')
     }
   }
 
@@ -71,10 +77,10 @@ function RouteComponent() {
         </>
       )}
 
-      {uploadFile.isPending && (
+      {isProcessing && (
         <div className="flex justify-center items-center gap-2 my-4">
           <Spinner />
-          <p>Processing your document...</p>
+          <p>Processing your content...</p>
         </div>
       )}
 
@@ -86,7 +92,7 @@ function RouteComponent() {
           <PromptInputAttachments>
             {(attachment) => <PromptInputAttachment data={attachment} />}
           </PromptInputAttachments>
-          <PromptInputTextarea placeholder="Attach a document and press Enter or the send button to start..." />
+          <PromptInputTextarea placeholder="Type a topic or attach a document to start..." />
         </PromptInputBody>
         <PromptInputToolbar>
           <PromptInputTools>
@@ -98,8 +104,8 @@ function RouteComponent() {
             </PromptInputActionMenu>
           </PromptInputTools>
           <PromptInputSubmit
-            disabled={uploadFile.isPending}
-            status={uploadFile.isPending ? 'submitted' : 'ready'}
+            disabled={isProcessing}
+            status={isProcessing ? 'submitted' : 'ready'}
           />
         </PromptInputToolbar>
       </PromptInput>

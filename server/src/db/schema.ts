@@ -137,6 +137,7 @@ export const quizzesTable = pgTable("quizzes", {
   createdAt: timestamp("created_at").defaultNow(),
   version: integer("version").default(1),
   parentQuizId: text("parent_quiz_id"),
+  proctoringSettings: jsonb("proctoring_settings").$type<{ eventLimit: number }>().default({ eventLimit: 5 })
 });
 
 export const questionDataSchema = z.object({
@@ -230,6 +231,7 @@ export const submissionsTable = pgTable("submissions", {
   completedAt: timestamp("completed_at"),
   durationSeconds: integer("duration_seconds"), // NEW
   disqualified: boolean("disqualified").default(false),
+  disqualificationReason: text("disqualification_reason"), 
   finished: boolean("finished").default(false)
 });
 

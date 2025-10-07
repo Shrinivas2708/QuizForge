@@ -234,5 +234,79 @@ sourceRoutes.get("/:sourceId/status", async (c) => {
 
     return c.json(source);
 });
+// POST /api/sources/text - Create a source from raw text
+sourceRoutes.post("/text", async (c) => {
+  const db = getDb(c.env.DATABASE_URL);
+  const auth = createAuth(c.env, db);
+  const session = await auth.api.getSession({ headers: c.req.raw.headers });
+
+  if (!session?.user?.id) {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
+
+  const { content, title } = await c.req.json();
+
+  if (!content) {
+    return c.json({ error: "Content is required" }, 400);
+  }
+  
+  // 1. Create the source record with type 'text_topic'
+  const newSource = await db.insert(sourcesTable).values({
+      userId: session.user.id,
+      title: title || `Text Topic: ${content.substring(0, 40)}...`,
+      type: 'text_topic',
+      status: 'processing',
+      rawContent: content, // Store the text directly
+  }).returning().then(res => res[0]);
+
+  // 2. Create a new chat session for this source
+  const newSession = await db.insert(chatSessionsTable).values({
+      userId: session.user.id,
+      title: newSource.title,
+  }).returning().then(res => res[0]);
+  
+  const chatSessionId = newSession.id;
+
+  // Add a system message about the text topic
+  await db.insert(chatMessagesTable).values({
+      sessionId: chatSessionId,
+      role: 'system',
+      type: 'document_upload', // We can reuse this type
+      content: { title: newSource.title, sourceId: newSource.id }
+  });
+
+  // Link source to the session
+  await db.insert(chatSessionSourcesTable).values({
+    sessionId: chatSessionId,
+    sourceId: newSource.id,
+  });
+
+  // 3. Start the background processing
+  c.executionCtx.waitUntil((async () => {
+      console.log(`[BACKGROUND] Starting processing for text source: ${newSource.id}`);
+      try {
+          // The langchain service already accepts a string, so this is simple
+          await processAndEmbedDocument(c.env, content, newSource.id, session.user.id!);
+          
+          await db.update(sourcesTable).set({ status: 'ready' })
+              .where(eq(sourcesTable.id, newSource.id));
+
+          // Add a "processing complete" message to the chat
+          await db.insert(chatMessagesTable).values({
+              sessionId: chatSessionId,
+              role: 'system',
+              type: 'processing_complete',
+              content: { sourceId: newSource.id }
+          });
+
+      } catch (error) {
+          console.error(`[BACKGROUND] Failed to process text source ${newSource.id}:`, error);
+          await db.update(sourcesTable).set({ status: 'error' })
+              .where(eq(sourcesTable.id, newSource.id));
+      }
+  })());
+
+  return c.json({ source: newSource, sessionId: chatSessionId }, 202);
+});
 
 export default sourceRoutes;

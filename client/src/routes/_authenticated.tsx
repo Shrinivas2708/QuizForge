@@ -56,12 +56,12 @@ function AuthenticatedLayout() {
     return (
       <SidebarProvider>
         <AppSidebar />
-        <SidebarInset className="flex h-screen w-full flex-col overflow-hidden">
+        <SidebarInset className="flex h-screen w-full flex-col ">
           <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
             <SidebarTrigger className="-ml-1" />
             <Nav />
           </header>
-          <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <main className="flex min-h-0 flex-1 flex-col overflow-y-auto ">
             <Outlet />
           </main>
         </SidebarInset>

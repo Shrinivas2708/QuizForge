@@ -58,7 +58,7 @@ export function QuizTakingScreen({ quizId }: QuizTakingScreenProps) {
   // Start submission mutation
   const startSubmissionMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiClient.post('/submissions/start', { quizId });
+      const response = await apiClient.post("/submissions/start", { quizId });
       return response.data;
     },
     onSuccess: (data: { submission: Submission; questions: Question[] }) => {
@@ -67,35 +67,51 @@ export function QuizTakingScreen({ quizId }: QuizTakingScreenProps) {
       handleStartQuiz();
     },
     onError: (error: any) => {
-      toast.error(error?.response?.data?.error || "Could not start the quiz session.");
-    }
+      toast.error(
+        error?.response?.data?.error || "Could not start the quiz session.",
+      );
+    },
   });
 
   // Submit answer mutation
   const submitAnswerMutation = useMutation({
-    mutationFn: async ({ questionId, givenAnswer }: { questionId: string; givenAnswer: string }) => {
-      if (!submissionId || !participantId) throw new Error("Submission not started");
-      
-      const response = await apiClient.post(`/submissions/${submissionId}/answer`, {
-        questionId,
-        givenAnswer,
-        participantId,
-      });
+    mutationFn: async ({
+      questionId,
+      givenAnswer,
+    }: {
+      questionId: string;
+      givenAnswer: string;
+    }) => {
+      if (!submissionId || !participantId)
+        throw new Error("Submission not started");
+
+      const response = await apiClient.post(
+        `/submissions/${submissionId}/answer`,
+        {
+          questionId,
+          givenAnswer,
+          participantId,
+        },
+      );
       return response.data;
     },
     onError: (error: any) => {
       toast.error(error?.response?.data?.error || "Failed to save answer");
-    }
+    },
   });
 
   // Finish quiz mutation
   const submissionMutation = useMutation({
     mutationFn: async () => {
-      if (!submissionId || !participantId) throw new Error("Submission not started");
-      
-      const response = await apiClient.post(`/submissions/${submissionId}/finish`, {
-        participantId
-      });
+      if (!submissionId || !participantId)
+        throw new Error("Submission not started");
+
+      const response = await apiClient.post(
+        `/submissions/${submissionId}/finish`,
+        {
+          participantId,
+        },
+      );
       return response.data;
     },
     onSuccess: (data) => {
@@ -115,7 +131,7 @@ export function QuizTakingScreen({ quizId }: QuizTakingScreenProps) {
     if (!submissionId) return;
 
     const interval = setInterval(() => {
-      setElapsedTime(prev => prev + 1);
+      setElapsedTime((prev) => prev + 1);
     }, 1000);
 
     return () => clearInterval(interval);
@@ -123,17 +139,31 @@ export function QuizTakingScreen({ quizId }: QuizTakingScreenProps) {
 
   // Fullscreen change handler
   useEffect(() => {
-    const handleFullScreenChange = () => {
+    document.addEventListener("contextmenu", function (event) {
+      event.preventDefault();
+    });
+    const handleFullScreenChange = async () => {
       if (!document.fullscreenElement) {
         setIsFullScreen(false);
         if (submissionId) {
-          toast.warning("You have exited fullscreen mode. Please return to fullscreen.");
+          toast.warning(
+            "You have exited fullscreen mode. Please return to fullscreen.",
+          );
           // Log proctoring event
-          apiClient.post(`/submissions/${submissionId}/proctoring`, {
-            eventType: "fullscreen_exit",
-            participantId,
-            details: { timestamp: new Date().toISOString() }
-          }).catch(() => {});
+        try {
+          const response =   await apiClient
+            .post(`/submissions/${submissionId}/proctoring`, {
+              eventType: "fullscreen_exit",
+              participantId,
+              details: { timestamp: new Date().toISOString() },
+            }) 
+             if (response.data.disqualified) {
+          toast.error(`Disqualified: ${response.data.reason}`);
+          submissionMutation.mutate(); // Automatically submit the quiz
+        }
+        } catch (error) {
+          
+        }
         }
       } else {
         setIsFullScreen(true);
@@ -141,26 +171,86 @@ export function QuizTakingScreen({ quizId }: QuizTakingScreenProps) {
     };
 
     document.addEventListener("fullscreenchange", handleFullScreenChange);
-    return () => document.removeEventListener("fullscreenchange", handleFullScreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullScreenChange);
+      document.addEventListener("contextmenu", function (event) {
+        event.preventDefault();
+      });
+    };
   }, [submissionId, participantId]);
 
   // Tab visibility handler
   useEffect(() => {
     if (!submissionId) return;
 
-    const handleVisibilityChange = () => {
+    const handleVisibilityChange = async () => {
       if (document.hidden) {
         toast.warning("Tab switch detected");
-        apiClient.post(`/submissions/${submissionId}/proctoring`, {
-          eventType: "tab_switch",
-          participantId,
-          details: { timestamp: new Date().toISOString() }
-        }).catch(() => {});
+        try {
+          const response = await apiClient
+          .post(`/submissions/${submissionId}/proctoring`, {
+            eventType: "tab_switch",
+            participantId,
+            details: { timestamp: new Date().toISOString() },
+          })
+           if (response.data.disqualified) {
+          toast.error(`Disqualified: ${response.data.reason}`);
+          submissionMutation.mutate(); // Automatically submit the quiz
+        }
+        } catch (error) {
+          
+        }
       }
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+    return () =>
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [submissionId, participantId]);
+  useEffect(() => {
+    if (!submissionId) return;
+
+    const handleCopy = async (e: ClipboardEvent) => {
+      const customText = "Don't try to cheat.";
+      e.preventDefault();
+      e.clipboardData?.setData("text/plain", customText);
+      try {
+        const res = await apiClient
+        .post(`/submissions/${submissionId}/proctoring`, {
+          eventType: "copy_paste",
+          participantId,
+          details: { timestamp: new Date().toISOString() },
+        })
+        if(res.data.disqualified){
+           toast.error(`Disqualified: ${res.data.reason}`);
+          submissionMutation.mutate();
+        }
+      } catch (error) {
+        
+      }
+    };
+
+    document.addEventListener("copy", (e) => handleCopy(e));
+    return () => document.removeEventListener("copy", (e) => handleCopy(e));
+  }, [submissionId, participantId]);
+  useEffect(() => {
+    if (!submissionId) return;
+
+    const handleSS = async (e: KeyboardEvent) => {
+      if (e.key === "PrintScreen" || e.code === "PrintScreen") {
+        toast.error("PrintScreen key detected!");
+      }
+      await apiClient
+        .post(`/submissions/${submissionId}/proctoring`, {
+          eventType: "copy_paste",
+          participantId,
+          details: { timestamp: new Date().toISOString() },
+        })
+        .catch(() => {});
+    };
+
+    document.addEventListener("keyup", (e) => handleSS(e));
+    return () => document.removeEventListener("keyup", (e) => handleSS(e));
   }, [submissionId, participantId]);
 
   const handleStartQuiz = async () => {
@@ -171,12 +261,15 @@ export function QuizTakingScreen({ quizId }: QuizTakingScreenProps) {
     }
   };
 
-  const handleAnswer = useCallback((questionId: string, answer: string) => {
-    setAnswers((prev) => ({ ...prev, [questionId]: answer }));
-    if (submissionId && participantId) {
-      submitAnswerMutation.mutate({ questionId, givenAnswer: answer });
-    }
-  }, [submissionId, participantId, submitAnswerMutation]);
+  const handleAnswer = useCallback(
+    (questionId: string, answer: string) => {
+      setAnswers((prev) => ({ ...prev, [questionId]: answer }));
+      if (submissionId && participantId) {
+        submitAnswerMutation.mutate({ questionId, givenAnswer: answer });
+      }
+    },
+    [submissionId, participantId, submitAnswerMutation],
+  );
 
   const handleNextQuestion = useCallback(() => {
     if (quizData && currentQuestionIndex < quizData.questions.length - 1) {
@@ -197,7 +290,7 @@ export function QuizTakingScreen({ quizId }: QuizTakingScreenProps) {
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
   const getAnsweredCount = () => {
@@ -206,7 +299,7 @@ export function QuizTakingScreen({ quizId }: QuizTakingScreenProps) {
 
   if (isLoading || !quizData) {
     return (
-      <div className="grid place-items-center h-full">
+      <div className="grid h-full place-items-center">
         <Spinner />
       </div>
     );
@@ -215,22 +308,24 @@ export function QuizTakingScreen({ quizId }: QuizTakingScreenProps) {
   // Show start screen if not in fullscreen
   if (!isFullScreen) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-center p-4 max-w-2xl mx-auto">
-        <h1 className="text-3xl font-bold mb-4">{quizData.title}</h1>
+      <div className="mx-auto flex h-full max-w-2xl flex-col items-center justify-center p-4 text-center">
+        <h1 className="mb-4 text-3xl font-bold">{quizData.title}</h1>
         <Alert className="mb-6">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            This quiz must be taken in fullscreen mode to ensure a focused environment. 
-            Exiting fullscreen during the quiz may result in disqualification.
+            This quiz must be taken in fullscreen mode to ensure a focused
+            environment. Exiting fullscreen during the quiz may result in
+            disqualification.
           </AlertDescription>
         </Alert>
-        <div className="space-y-2 mb-6 text-left w-full">
+        <div className="mb-6 w-full space-y-2 text-left">
           <p className="flex items-center gap-2">
-            <span className="font-medium">Questions:</span> {quizData.questions.length}
+            <span className="font-medium">Questions:</span>{" "}
+            {quizData.questions.length}
           </p>
         </div>
-        <Button 
-          onClick={() => startSubmissionMutation.mutate()} 
+        <Button
+          onClick={() => startSubmissionMutation.mutate()}
           disabled={startSubmissionMutation.isPending}
           size="lg"
         >
@@ -244,52 +339,67 @@ export function QuizTakingScreen({ quizId }: QuizTakingScreenProps) {
   const currentQuestion = quizData.questions[currentQuestionIndex];
 
   if (!currentQuestion) {
-    return <div className="grid place-items-center h-full">Question not found.</div>;
+    return (
+      <div className="grid h-full place-items-center">Question not found.</div>
+    );
   }
 
   return (
     <div className="p-4 md:p-8">
-      <Card className="max-w-3xl mx-auto">
+      <Card className="mx-auto max-w-3xl">
         <CardHeader>
-          <div className="flex justify-between items-center flex-wrap gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <CardTitle>{quizData.title}</CardTitle>
-            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+            <div className="text-muted-foreground flex items-center gap-4 text-sm">
               <span className="flex items-center gap-1">
                 <Clock className="h-4 w-4" />
                 {formatTime(elapsedTime)}
               </span>
               <span>
-                Question {currentQuestionIndex + 1} of {quizData.questions.length}
+                Question {currentQuestionIndex + 1} of{" "}
+                {quizData.questions.length}
               </span>
             </div>
           </div>
           <div className="mt-2">
-            <div className="w-full bg-secondary rounded-full h-2">
-              <div 
-                className="bg-primary h-2 rounded-full transition-all" 
-                style={{ width: `${(getAnsweredCount() / quizData.questions.length) * 100}%` }}
+            <div className="bg-secondary h-2 w-full rounded-full">
+              <div
+                className="bg-primary h-2 rounded-full transition-all"
+                style={{
+                  width: `${(getAnsweredCount() / quizData.questions.length) * 100}%`,
+                }}
               />
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-muted-foreground mt-1 text-xs">
               {getAnsweredCount()} of {quizData.questions.length} answered
             </p>
           </div>
         </CardHeader>
         <CardContent>
-          <p className="mb-6 text-lg font-medium">{currentQuestion.questionText}</p>
+          <p className="mb-6 text-lg font-medium">
+            {currentQuestion.questionText}
+          </p>
           <div className="flex flex-col gap-3">
-            {currentQuestion.questionType === 'true_false' ? (
+            {currentQuestion.questionType === "true_false" ? (
               <>
-                <Button 
-                  variant={answers[currentQuestion.id] === 'True' ? 'default' : 'outline'} 
-                  onClick={() => handleAnswer(currentQuestion.id, 'True')}
+                <Button
+                  variant={
+                    answers[currentQuestion.id] === "True"
+                      ? "default"
+                      : "outline"
+                  }
+                  onClick={() => handleAnswer(currentQuestion.id, "True")}
                   className="h-auto py-3"
                 >
                   True
                 </Button>
-                <Button 
-                  variant={answers[currentQuestion.id] === 'False' ? 'default' : 'outline'} 
-                  onClick={() => handleAnswer(currentQuestion.id, 'False')}
+                <Button
+                  variant={
+                    answers[currentQuestion.id] === "False"
+                      ? "default"
+                      : "outline"
+                  }
+                  onClick={() => handleAnswer(currentQuestion.id, "False")}
                   className="h-auto py-3"
                 >
                   False
@@ -299,16 +409,20 @@ export function QuizTakingScreen({ quizId }: QuizTakingScreenProps) {
               currentQuestion.data?.options?.map((option: string) => (
                 <Button
                   key={option}
-                  variant={answers[currentQuestion.id] === option ? "default" : "outline"}
+                  variant={
+                    answers[currentQuestion.id] === option
+                      ? "default"
+                      : "outline"
+                  }
                   onClick={() => handleAnswer(currentQuestion.id, option)}
-                  className="h-auto min-h-12 py-3 whitespace-normal text-left justify-start"
+                  className="h-auto min-h-12 justify-start py-3 text-left whitespace-normal"
                 >
                   {option}
                 </Button>
               ))
             )}
           </div>
-          <div className="flex justify-between mt-8 gap-2">
+          <div className="mt-8 flex justify-between gap-2">
             <Button
               onClick={handlePreviousQuestion}
               disabled={currentQuestionIndex === 0}
@@ -317,8 +431,8 @@ export function QuizTakingScreen({ quizId }: QuizTakingScreenProps) {
               Previous
             </Button>
             {currentQuestionIndex === quizData.questions.length - 1 ? (
-              <Button 
-                onClick={handleSubmit} 
+              <Button
+                onClick={handleSubmit}
                 disabled={submissionMutation.isPending}
               >
                 {submissionMutation.isPending ? <Spinner /> : "Submit Quiz"}
