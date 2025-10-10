@@ -89,6 +89,7 @@ export function AppSidebar() {
                                 {chat.title}
                               </span>
                             </Link>
+                            
                           </SidebarMenuButton>
                         </SidebarMenuItem>
                       ))}

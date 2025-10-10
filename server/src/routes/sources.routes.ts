@@ -114,7 +114,7 @@ sourceRoutes.post("/upload", async (c) => {
             
             await processAndEmbedDocument(c.env, text, newSource.id, session.user.id!);
             
-            await db.update(sourcesTable).set({ status: 'ready', rawContent: text })
+            await db.update(sourcesTable).set({ status: 'ready', rawContent: text.replace(/\x00/g, '') })
                 .where(eq(sourcesTable.id, newSource.id));
 
             await db.insert(chatMessagesTable).values({

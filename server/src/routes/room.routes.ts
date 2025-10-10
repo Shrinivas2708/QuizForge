@@ -110,7 +110,9 @@ roomRoutes.get("/:roomId/results", async (c) => {
         with: {
             participant: {
                 columns: {
-                    identifier: true
+                    id: true,
+                    details: true,
+                    joinedAt: true
                 }
             }
         },

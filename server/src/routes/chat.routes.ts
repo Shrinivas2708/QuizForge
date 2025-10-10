@@ -36,6 +36,23 @@ if(!sessions){
     return c.json(sessions);
     
 });
+// DELETE 
+chatRoutes.delete("/:sessionId/delete" ,async (c)=>{
+  const db = getDb(c.env.DATABASE_URL);
+    const auth = createAuth(c.env, db);
+    const session = await auth.api.getSession({ headers: c.req.raw.headers });
+    const { sessionId } = c.req.param();
+
+    if (!session?.user?.id) {
+        return c.json({ error: "Unauthorized" }, 401);
+    }
+    try {
+         await db.delete(chatSessionSourcesTable).where(eq(chatSessionSourcesTable.sessionId, sessionId))
+        c.json({message:"Deleted Chat successfully"},200)
+    } catch (error) {
+        c.json({error})
+    }  
+})
 // GET /api/chat/sessions - Get all chat sessions for the user
 chatRoutes.post("/sessions", async (c) => {
     const db = getDb(c.env.DATABASE_URL);
