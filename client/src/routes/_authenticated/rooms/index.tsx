@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import apiClient from "@/lib/axios";
+import { ROOMS_URL } from "@/lib/exports";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Link as LinkIcon } from "lucide-react";
@@ -68,7 +69,7 @@ function RouteComponent() {
                       <LinkIcon
                         onClick={() => {
                           window.open(
-                            `http://localhost:5173/${v.shareableCode}`,
+                            `${ROOMS_URL}/${v.shareableCode}`,
                             "_blank",
                           );
                         }}
