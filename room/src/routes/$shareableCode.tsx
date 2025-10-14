@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import apiClient from "../lib/axios";
 import { useState } from "react";
@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-
+import { ThemeButton } from '@/components/toggle-theme'
 export const Route = createFileRoute("/$shareableCode")({
   component: JoinRoomComponent,
 });
@@ -103,6 +103,7 @@ function JoinRoomComponent() {
 
   return (
     <div className="flex-1 grid place-items-center p-4 min-h-screen">
+      <ThemeButton  />
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle>{roomDetails.title}</CardTitle>
@@ -111,7 +112,7 @@ function JoinRoomComponent() {
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 mb-3">
             {roomDetails.participantInfoRequired.map((field) => (
               <div key={field} className="space-y-2">
                 <Label htmlFor={field}>

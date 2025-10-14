@@ -122,7 +122,11 @@ roomRoutes.post("/:shareableCode/join", async (c) => {
     where: eq(roomsTable.shareableCode, shareableCode),
   });
   if (!room) return c.json({ message: "No room!" }, 400);
-  
+  const createdAt = new Date(room.createdAt!);
+  const expiryTime = createdAt.getTime() + room.timeLimitSeconds * 1000;
+  if (Date.now() > expiryTime) {
+      return c.json({ error: "This room has expired." }, 403);
+  }
   for (const field of room.participantFields) {
     if (!details[field]) {
       return c.json({ error: `Missing required field: '${field}'` }, 400);
@@ -302,6 +306,12 @@ roomRoutes.post("/:shareableCode/start", async (c) => {
   if (!room) {
     return c.json({ error: "Room not found" }, 404);
   }
+  const createdAt = new Date(room.createdAt!);
+  const expiryTime = createdAt.getTime() + room.timeLimitSeconds * 1000;
+  if (Date.now() > expiryTime) {
+      return c.json({ error: "This room has expired and you can no longer start the quiz." }, 403);
+  }
+
 
   const participant = await db.query.participantsTable.findFirst({
     where: and(

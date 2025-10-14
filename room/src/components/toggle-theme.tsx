@@ -7,7 +7,8 @@ import { useTheme } from '@/providers/theme-provider'
 export function ThemeButton() {
   const { setTheme, theme } = useTheme()
   return (
-    <Button
+    <div className='absolute bottom-10 right-10'>
+      <Button
       variant="outline"
       size="icon"
       onClick={() => {
@@ -19,5 +20,6 @@ export function ThemeButton() {
       <Moon className="absolute h-[1.2rem] w-[1.2rem] scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0" />
       <span className="sr-only">Toggle theme</span>
     </Button>
+    </div>
   )
 }

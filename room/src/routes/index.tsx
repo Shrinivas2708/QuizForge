@@ -1,14 +1,11 @@
-import { ThemeButton } from '@/components/toggle-theme'
 import { createFileRoute } from '@tanstack/react-router'
+const URL =  import.meta.env.VITE_ENV === "dev"
+    ? "http://localhost:3000"
+    : "https://quizforge.shriii.xyz";
 
 export const Route = createFileRoute('/')({
-  component: App,
+  beforeLoad:()=>{
+    window.location.replace(URL)
+  }
 })
 
-function App() {
-  return (
-    <div>
-      <ThemeButton />
-    </div>
-   )
-}
