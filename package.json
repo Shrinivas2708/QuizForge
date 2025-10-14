@@ -6,7 +6,7 @@
   "private": "true",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "pnpm --filter client --filter server dev"
+    "dev": "pnpm --filter client --filter server --filter room dev"
   },
   "keywords": [],
   "author": "",
