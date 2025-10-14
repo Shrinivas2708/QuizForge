@@ -1,16 +1,17 @@
-
 import { useEffect, useState, useCallback } from "react";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import apiClient from "@/lib/axios";
+import { useMutation } from "@tanstack/react-query";
+import apiClient from "../lib/axios";
 import { Spinner } from "./ui/spinner";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { AlertCircle, Clock } from "lucide-react";
 import { Alert, AlertDescription } from "./ui/alert";
 
-interface QuizTakingScreenProps {
+interface RoomQuizTakerProps {
+  participantId: string;
+  shareableCode: string;
   quizId: string;
 }
 
@@ -24,55 +25,46 @@ interface Question {
 }
 
 interface QuizData {
-  id: string;
   title: string;
   questions: Question[];
 }
 
-interface Submission {
-  id: string;
-  participantId: string;
-  quizId: string;
-  startedAt: string;
-}
-
-export function QuizTakingScreen({ quizId }: QuizTakingScreenProps) {
+export function RoomQuizTaker({
+  participantId,
+  shareableCode,
+}: RoomQuizTakerProps) {
   const navigate = useNavigate();
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [isFullScreen, setIsFullScreen] = useState(false);
+  const [isFullScreen, setIsFullScreen] = useState(
+    document.fullscreenElement != null
+  );
   const [submissionId, setSubmissionId] = useState<string | null>(null);
-  const [participantId, setParticipantId] = useState<string | null>(null);
+  const [quizData, setQuizData] = useState<QuizData | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0);
 
-  // Fetch quiz data
-  const { data: quizData, isLoading } = useQuery<QuizData>({
-    queryKey: ["quiz", quizId, "take"],
-    queryFn: async () => {
-      const response = await apiClient.get(`/quizzes/${quizId}/take`);
-      return response.data;
-    },
-  });
-
-  // Start submission mutation
   const startSubmissionMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiClient.post("/submissions/start", { quizId });
+      const response = await apiClient.post(`/rooms/${shareableCode}/start`, {
+        participantId,
+      });
       return response.data;
     },
-    onSuccess: (data: { submission: Submission; questions: Question[] }) => {
+    onSuccess: (data) => {
       setSubmissionId(data.submission.id);
-      setParticipantId(data.submission.participantId);
+      setQuizData({
+        title: "Quiz", // You can enhance this by fetching quiz title
+        questions: data.questions,
+      });
       handleStartQuiz();
     },
     onError: (error: any) => {
       toast.error(
-        error?.response?.data?.error || "Could not start the quiz session.",
+        error?.response?.data?.error || "Could not start the quiz session."
       );
     },
   });
 
-  // Submit answer mutation
   const submitAnswerMutation = useMutation({
     mutationFn: async ({
       questionId,
@@ -81,176 +73,107 @@ export function QuizTakingScreen({ quizId }: QuizTakingScreenProps) {
       questionId: string;
       givenAnswer: string;
     }) => {
-      if (!submissionId || !participantId)
-        throw new Error("Submission not started");
-
-      const response = await apiClient.post(
-        `/submissions/${submissionId}/answer`,
-        {
-          questionId,
-          givenAnswer,
-          participantId,
-        },
-      );
-      return response.data;
+      if (!submissionId) throw new Error("Submission not started");
+      return apiClient.post(`/submissions/${submissionId}/answer`, {
+        questionId,
+        givenAnswer,
+        participantId,
+      });
     },
-    onError: (error: any) => {
+     onError: (error: any) => {
       toast.error(error?.response?.data?.error || "Failed to save answer");
     },
   });
 
-  // Finish quiz mutation
-  const submissionMutation = useMutation({
+  const finishSubmissionMutation = useMutation({
     mutationFn: async () => {
-      if (!submissionId || !participantId)
-        throw new Error("Submission not started");
-
-      const response = await apiClient.post(
-        `/submissions/${submissionId}/finish`,
-        {
-          participantId,
-        },
-      );
-      return response.data;
-    },
-    onSuccess: (data) => {
-      navigate({
-        to: "/quiz/$quizId/results",
-        params: { quizId: data.quizId },
-        search: { submissionId: data.id },
+      if (!submissionId) throw new Error("Submission not started");
+      return apiClient.post(`/submissions/${submissionId}/finish`, {
+        participantId,
       });
     },
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.error || "Failed to submit quiz");
+    onSuccess: () => {
+      toast.success("Quiz submitted successfully!");
+      // Exit fullscreen and navigate home
+      if (document.fullscreenElement) {
+        document.exitFullscreen();
+      }
+      navigate({ to: "/" });
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.error || "Failed to submit quiz.");
     },
   });
 
   // Timer effect
   useEffect(() => {
     if (!submissionId) return;
-
     const interval = setInterval(() => {
       setElapsedTime((prev) => prev + 1);
     }, 1000);
-
     return () => clearInterval(interval);
   }, [submissionId]);
 
-  // Fullscreen change handler
+  // Proctoring effects (fullscreen, visibility, copy/paste)
   useEffect(() => {
-    document.addEventListener("contextmenu", function (event) {
-      event.preventDefault();
-    });
-    const handleFullScreenChange = async () => {
+    if (!submissionId) return;
+
+    const proctoringEvent = async (eventType: string) => {
+      try {
+        const response = await apiClient.post(
+          `/submissions/${submissionId}/proctoring`,
+          {
+            eventType,
+            participantId,
+            details: { timestamp: new Date().toISOString() },
+          }
+        );
+        if (response.data.disqualified) {
+          toast.error(`Disqualified: ${response.data.reason}`);
+          finishSubmissionMutation.mutate();
+        }
+      } catch (error) {
+        // Silently fail or log to console
+      }
+    };
+
+    const handleFullScreenChange = () => {
       if (!document.fullscreenElement) {
         setIsFullScreen(false);
-        if (submissionId) {
-          toast.warning(
-            "You have exited fullscreen mode. Please return to fullscreen.",
-          );
-          // Log proctoring event
-        try {
-          const response =   await apiClient
-            .post(`/submissions/${submissionId}/proctoring`, {
-              eventType: "fullscreen_exit",
-              participantId,
-              details: { timestamp: new Date().toISOString() },
-            }) 
-             if (response.data.disqualified) {
-          toast.error(`Disqualified: ${response.data.reason}`);
-          submissionMutation.mutate(); // Automatically submit the quiz
-        }
-        } catch (error) {
-          
-        }
-        }
+        toast.warning("You have exited fullscreen mode.");
+        proctoringEvent("fullscreen_exit");
       } else {
         setIsFullScreen(true);
       }
     };
 
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        toast.warning("Tab switch detected.");
+        proctoringEvent("tab_switch");
+      }
+    };
+
+    const handleCopy = (e: ClipboardEvent) => {
+        e.preventDefault();
+        toast.warning("Copying is disabled during the quiz.");
+        proctoringEvent("copy_paste");
+    };
+    
     document.addEventListener("fullscreenchange", handleFullScreenChange);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    document.addEventListener("copy", handleCopy);
+    document.addEventListener("contextmenu", (e) => e.preventDefault());
+
+
     return () => {
       document.removeEventListener("fullscreenchange", handleFullScreenChange);
-      document.removeEventListener("contextmenu", function (event) {
-        event.preventDefault();
-      });
-    };
-  }, [submissionId, participantId]);
-
-  // Tab visibility handler
-  useEffect(() => {
-    if (!submissionId) return;
-
-    const handleVisibilityChange = async () => {
-      if (document.hidden) {
-        toast.warning("Tab switch detected");
-        try {
-          const response = await apiClient
-          .post(`/submissions/${submissionId}/proctoring`, {
-            eventType: "tab_switch",
-            participantId,
-            details: { timestamp: new Date().toISOString() },
-          })
-           if (response.data.disqualified) {
-          toast.error(`Disqualified: ${response.data.reason}`);
-          submissionMutation.mutate(); // Automatically submit the quiz
-        }
-        } catch (error) {
-          
-        }
-      }
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () =>
       document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, [submissionId, participantId]);
-  useEffect(() => {
-    if (!submissionId) return;
-
-    const handleCopy = async (e: ClipboardEvent) => {
-      const customText = "Don't try to cheat.";
-      e.preventDefault();
-      e.clipboardData?.setData("text/plain", customText);
-      try {
-        const res = await apiClient
-        .post(`/submissions/${submissionId}/proctoring`, {
-          eventType: "copy_paste",
-          participantId,
-          details: { timestamp: new Date().toISOString() },
-        })
-        if(res.data.disqualified){
-           toast.error(`Disqualified: ${res.data.reason}`);
-          submissionMutation.mutate();
-        }
-      } catch (error) {
-        
-      }
+      document.removeEventListener("copy", handleCopy);
+      document.removeEventListener("contextmenu", (e) => e.preventDefault());
     };
+  }, [submissionId, participantId, finishSubmissionMutation]);
 
-    document.addEventListener("copy", (e) => handleCopy(e));
-    return () => document.removeEventListener("copy", (e) => handleCopy(e));
-  }, [submissionId, participantId]);
-  useEffect(() => {
-    if (!submissionId) return;
-
-    const handleSS = async (e: KeyboardEvent) => {
-      if (e.key === "PrintScreen" || e.code === "PrintScreen") {
-        toast.error("PrintScreen key detected!");
-      }
-      await apiClient
-        .post(`/submissions/${submissionId}/proctoring`, {
-          eventType: "copy_paste",
-          participantId,
-          details: { timestamp: new Date().toISOString() },
-        })
-        .catch(() => {});
-    };
-
-    document.addEventListener("keyup", (e) => handleSS(e));
-    return () => document.removeEventListener("keyup", (e) => handleSS(e));
-  }, [submissionId, participantId]);
 
   const handleStartQuiz = async () => {
     try {
@@ -263,11 +186,11 @@ export function QuizTakingScreen({ quizId }: QuizTakingScreenProps) {
   const handleAnswer = useCallback(
     (questionId: string, answer: string) => {
       setAnswers((prev) => ({ ...prev, [questionId]: answer }));
-      if (submissionId && participantId) {
+      if (submissionId) {
         submitAnswerMutation.mutate({ questionId, givenAnswer: answer });
       }
     },
-    [submissionId, participantId, submitAnswerMutation],
+    [submissionId, submitAnswerMutation]
   );
 
   const handleNextQuestion = useCallback(() => {
@@ -283,10 +206,10 @@ export function QuizTakingScreen({ quizId }: QuizTakingScreenProps) {
   }, [currentQuestionIndex]);
 
   const handleSubmit = useCallback(() => {
-    submissionMutation.mutate();
-  }, [submissionMutation]);
-
-  const formatTime = (seconds: number) => {
+    finishSubmissionMutation.mutate();
+  }, [finishSubmissionMutation]);
+  
+    const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, "0")}`;
@@ -296,15 +219,34 @@ export function QuizTakingScreen({ quizId }: QuizTakingScreenProps) {
     return Object.keys(answers).length;
   };
 
-  if (isLoading || !quizData) {
+
+  if (!quizData || !submissionId) {
     return (
-      <div className="grid h-full place-items-center">
-        <Spinner />
+      <div className="mx-auto flex h-screen max-w-2xl flex-col items-center justify-center p-4 text-center">
+        <h1 className="mb-4 text-3xl font-bold">Ready to Start?</h1>
+        <Alert className="mb-6">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            This quiz must be taken in fullscreen mode. Exiting fullscreen may
+            result in disqualification.
+          </AlertDescription>
+        </Alert>
+        <Button
+          onClick={() => startSubmissionMutation.mutate()}
+          disabled={startSubmissionMutation.isPending}
+          size="lg"
+        >
+          {startSubmissionMutation.isPending ? <Spinner /> : "Start Quiz"}
+        </Button>
       </div>
     );
   }
-
-  // Show start screen if not in fullscreen
+  const currentQuestion = quizData.questions[currentQuestionIndex];
+  if (!currentQuestion) {
+    return (
+      <div className="grid h-full place-items-center">Question not found.</div>
+    );
+  }
   if (!isFullScreen) {
     return (
       <div className="mx-auto flex h-full max-w-2xl flex-col items-center justify-center p-4 text-center">
@@ -333,16 +275,6 @@ export function QuizTakingScreen({ quizId }: QuizTakingScreenProps) {
       </div>
     );
   }
-
-  // Use quizData.questions instead of the separate questions state
-  const currentQuestion = quizData.questions[currentQuestionIndex];
-
-  if (!currentQuestion) {
-    return (
-      <div className="grid h-full place-items-center">Question not found.</div>
-    );
-  }
-
   return (
     <div className="p-4 md:p-8">
       <Card className="mx-auto max-w-3xl">
@@ -365,7 +297,8 @@ export function QuizTakingScreen({ quizId }: QuizTakingScreenProps) {
               <div
                 className="bg-primary h-2 rounded-full transition-all"
                 style={{
-                  width: `${(getAnsweredCount() / quizData.questions.length) * 100}%`,
+                  width: `${(getAnsweredCount() / quizData.questions.length) * 100
+                    }%`,
                 }}
               />
             </div>
@@ -432,9 +365,13 @@ export function QuizTakingScreen({ quizId }: QuizTakingScreenProps) {
             {currentQuestionIndex === quizData.questions.length - 1 ? (
               <Button
                 onClick={handleSubmit}
-                disabled={submissionMutation.isPending}
+                disabled={finishSubmissionMutation.isPending}
               >
-                {submissionMutation.isPending ? <Spinner /> : "Submit Quiz"}
+                {finishSubmissionMutation.isPending ? (
+                  <Spinner />
+                ) : (
+                  "Submit Quiz"
+                )}
               </Button>
             ) : (
               <Button onClick={handleNextQuestion}>Next</Button>

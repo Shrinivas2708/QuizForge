@@ -7,9 +7,10 @@ import {
   quizzesTable,
   participantsTable,
   submissionsTable,
+  questionsTable,
 } from "../db/schema";
 import { nanoid } from "nanoid";
-import { eq, and, desc, sql, not } from "drizzle-orm";
+import { eq, and, desc, sql, not, inArray } from "drizzle-orm";
 
 const roomRoutes = new Hono<AppEnv>();
 
@@ -44,6 +45,7 @@ roomRoutes.get("/getAllRooms", async (c) => {
 
   return c.json(roomsWithParticipantCount);
 });
+
 // POST /api/rooms - Create a new room from a quiz
 roomRoutes.post("/", async (c) => {
   const db = getDb(c.env.DATABASE_URL);
@@ -66,7 +68,7 @@ roomRoutes.post("/", async (c) => {
   const newRoom = await db
     .insert(roomsTable)
     .values({
-      quizId, // ✅ new field
+      quizId,
       name,
       shareableCode: nanoid(8),
       timeLimitSeconds,
@@ -81,30 +83,29 @@ roomRoutes.post("/", async (c) => {
 
 // GET /api/rooms/:shareableCode - Get public room details before joining
 roomRoutes.get("/:shareableCode", async (c) => {
-    const db = getDb(c.env.DATABASE_URL);
-    const { shareableCode } = c.req.param();
+  const db = getDb(c.env.DATABASE_URL);
+  const { shareableCode } = c.req.param();
 
-    // CORRECTED JOIN: Use roomsTable.quizId
-    const roomDetails = await db
-      .select({
-        title: quizzesTable.title,
-        participantInfoRequired: roomsTable.participantFields,
-      })
-      .from(roomsTable)
-      .innerJoin(quizzesTable, eq(roomsTable.quizId, quizzesTable.id)) // FIX: Changed from roomsTable.id
-      .where(
-        and(
-          eq(roomsTable.shareableCode, shareableCode),
-          eq(roomsTable.isOpen, true)
-        )
+  const roomDetails = await db
+    .select({
+      title: quizzesTable.title,
+      participantInfoRequired: roomsTable.participantFields,
+    })
+    .from(roomsTable)
+    .innerJoin(quizzesTable, eq(roomsTable.quizId, quizzesTable.id))
+    .where(
+      and(
+        eq(roomsTable.shareableCode, shareableCode),
+        eq(roomsTable.isOpen, true)
       )
-      .then((res) => res[0]);
+    )
+    .then((res) => res[0]);
 
-    if (!roomDetails) {
-        return c.json({ error: "Room not found or is closed" }, 404);
-    }
+  if (!roomDetails) {
+    return c.json({ error: "Room not found or is closed" }, 404);
+  }
 
-    return c.json(roomDetails);
+  return c.json(roomDetails);
 });
 
 // POST /api/rooms/:shareableCode/join - Join a room
@@ -120,7 +121,8 @@ roomRoutes.post("/:shareableCode/join", async (c) => {
   const room = await db.query.roomsTable.findFirst({
     where: eq(roomsTable.shareableCode, shareableCode),
   });
-  if (!room) return c.json({ message: "No rooom!" }, 400);
+  if (!room) return c.json({ message: "No room!" }, 400);
+  
   for (const field of room.participantFields) {
     if (!details[field]) {
       return c.json({ error: `Missing required field: '${field}'` }, 400);
@@ -131,12 +133,11 @@ roomRoutes.post("/:shareableCode/join", async (c) => {
     .insert(participantsTable)
     .values({
       roomId: room.id,
-      details, // Save the JSON details object
+      details,
     })
     .returning()
     .then((res) => res[0]);
 
-  // In a real application, you'd return a secure JWT for the participant
   return c.json({
     participantId: participant.id,
     roomId: room.id,
@@ -155,28 +156,37 @@ roomRoutes.get("/:roomId/results", async (c) => {
     return c.json({ error: "Unauthorized" }, 401);
   }
 
-  const quiz = await db.query.quizzesTable.findFirst({
-    where: and(
-      eq(quizzesTable.id, roomId),
-      eq(quizzesTable.ownerId, session.user.id)
-    ),
+  // Verify room exists and user is owner
+  const room = await db.query.roomsTable.findFirst({
+    where: eq(roomsTable.id, roomId),
+    with: {
+      quiz: true
+    }
   });
 
-  if (!quiz) {
+  if (!room || room.quiz.ownerId !== session.user.id) {
     return c.json({ error: "Room not found or you are not the owner" }, 404);
   }
-const room = await db.query.roomsTable.findFirst({
-      where: eq(roomsTable.id, roomId),
-      with: {
-        quiz: true
-      }
-    });
 
-    if (!room || room.quiz.ownerId !== session.user.id) {
-        return c.json({ error: "Room not found or you are not the owner" }, 404);
-    }
+  // Get all participant IDs for this specific room
+  const roomParticipants = await db
+    .select({ id: participantsTable.id })
+    .from(participantsTable)
+    .where(eq(participantsTable.roomId, roomId));
+
+  const participantIds = roomParticipants.map(p => p.id);
+
+  // If no participants have joined, return empty array
+  if (participantIds.length === 0) {
+    return c.json([]);
+  }
+
+  // Get submissions only from participants in this room
   const submissions = await db.query.submissionsTable.findMany({
-    where: eq(submissionsTable.quizId, room.quizId),
+    where: and(
+      eq(submissionsTable.quizId, room.quizId),
+      inArray(submissionsTable.participantId, participantIds)
+    ),
     with: {
       participant: {
         columns: {
@@ -197,7 +207,8 @@ const room = await db.query.roomsTable.findFirst({
 
   return c.json(submissions);
 });
-// GET /api/rooms/:roomId/analytics - Get results for a room (owner only)
+
+// GET /api/rooms/:roomId/analytics - Get analytics for a room (owner only)
 roomRoutes.get("/:roomId/analytics", async (c) => {
   const db = getDb(c.env.DATABASE_URL);
   const auth = createAuth(c.env, db);
@@ -208,18 +219,42 @@ roomRoutes.get("/:roomId/analytics", async (c) => {
     return c.json({ error: "Unauthorized" }, 401);
   }
 
-    const room = await db.query.roomsTable.findFirst({
-      where: eq(roomsTable.id, roomId),
-      with: {
-        quiz: true
-      }
-    });
-
-    if (!room || !room.quiz || room.quiz.ownerId !== session.user.id) {
-        return c.json({ error: "Room not found or you are not the owner" }, 404);
+  // Verify room exists and user is owner
+  const room = await db.query.roomsTable.findFirst({
+    where: eq(roomsTable.id, roomId),
+    with: {
+      quiz: true
     }
+  });
+
+  if (!room || !room.quiz || room.quiz.ownerId !== session.user.id) {
+    return c.json({ error: "Room not found or you are not the owner" }, 404);
+  }
+
+  // Get all participant IDs for this specific room
+  const roomParticipants = await db
+    .select({ id: participantsTable.id })
+    .from(participantsTable)
+    .where(eq(participantsTable.roomId, roomId));
+
+  const participantIds = roomParticipants.map(p => p.id);
+
+  // If no participants have joined, return empty analytics
+  if (participantIds.length === 0) {
+    return c.json({
+      room,
+      averageScore: 0,
+      participants: [],
+      submissions: [],
+    });
+  }
+
+  // Get submissions only from participants in this room
   const submissions = await db.query.submissionsTable.findMany({
-    where: eq(submissionsTable.quizId, room.quizId),
+    where: and(
+      eq(submissionsTable.quizId, room.quizId),
+      inArray(submissionsTable.participantId, participantIds)
+    ),
     with: {
       participant: {
         columns: {
@@ -238,7 +273,9 @@ roomRoutes.get("/:roomId/analytics", async (c) => {
     },
   });
 
-  const averageScore = submissions.reduce((acc, sub) => acc + (sub.finalScore || 0), 0) / (submissions.length || 1);
+  const averageScore = submissions.length > 0
+    ? submissions.reduce((acc, sub) => acc + (sub.finalScore || 0), 0) / submissions.length
+    : 0;
 
   return c.json({
     room,
@@ -247,4 +284,85 @@ roomRoutes.get("/:roomId/analytics", async (c) => {
     submissions,
   });
 });
-export default roomRoutes;
+
+// POST /api/rooms/:shareableCode/start - Start a quiz in a room
+roomRoutes.post("/:shareableCode/start", async (c) => {
+  const db = getDb(c.env.DATABASE_URL);
+  const { shareableCode } = c.req.param();
+  const { participantId } = await c.req.json();
+
+  if (!participantId) {
+    return c.json({ error: "Participant ID is required" }, 400);
+  }
+
+  const room = await db.query.roomsTable.findFirst({
+    where: eq(roomsTable.shareableCode, shareableCode),
+  });
+
+  if (!room) {
+    return c.json({ error: "Room not found" }, 404);
+  }
+
+  const participant = await db.query.participantsTable.findFirst({
+    where: and(
+      eq(participantsTable.id, participantId),
+      eq(participantsTable.roomId, room.id)
+    ),
+  });
+
+  if (!participant) {
+    return c.json({ error: "Invalid participant for this room" }, 403);
+  }
+
+  // Check if participant was previously disqualified in THIS room
+  const priorDisqualifiedSubmission = await db
+    .select({ id: submissionsTable.id })
+    .from(submissionsTable)
+    .where(and(
+      eq(submissionsTable.participantId, participantId),
+      eq(submissionsTable.quizId, room.quizId),
+      eq(submissionsTable.disqualified, true)
+    ))
+    .limit(1);
+
+  if (priorDisqualifiedSubmission.length > 0) {
+    return c.json({ 
+      error: "You have been disqualified and cannot start a new attempt." 
+    }, 403);
+  }
+
+  // Get existing submissions for this participant
+  const existingSubmissions = await db
+    .select()
+    .from(submissionsTable)
+    .where(eq(submissionsTable.participantId, participant.id));
+
+  const submission = await db
+    .insert(submissionsTable)
+    .values({
+      participantId: participant.id,
+      quizId: room.quizId,
+      attemptNumber: existingSubmissions.length + 1
+    })
+    .returning()
+    .then(res => res[0]);
+
+  const questions = await db
+    .select({
+      id: questionsTable.id,
+      questionType: questionsTable.questionType,
+      questionText: questionsTable.questionText,
+      data: questionsTable.data
+    })
+    .from(questionsTable)
+    .where(eq(questionsTable.quizId, room.quizId));
+
+  const questionsForParticipant = questions.map((q) => ({
+    ...q,
+    data: { options: q.data.options },
+  }));
+
+  return c.json({ submission, questions: questionsForParticipant }, 201);
+});
+
+export default roomRoutes
