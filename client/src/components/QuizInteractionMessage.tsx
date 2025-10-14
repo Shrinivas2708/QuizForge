@@ -7,6 +7,14 @@ import { useQuery } from "@tanstack/react-query";
 import apiClient from "../lib/axios";
 import { Badge } from "./ui/badge";
 import { Spinner } from "./ui/spinner";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "./ui/dialog";
 
 interface QuizGeneratedMessageProps {
   quizId: string;
@@ -62,16 +70,16 @@ export const QuizGeneratedMessage = ({
       },
     });
   };
-
+  const createRoomHandler = () => {};
   return (
     <div className="from-primary/5 to-primary/10 space-y-4 rounded-lg border bg-gradient-to-br p-6">
-           {" "}
+           
       <div>
-                <h3 className="text-lg font-semibold">Quiz Ready!</h3>       {" "}
+                <h3 className="text-lg font-semibold">Quiz Ready!</h3>       
         <p className="text-muted-foreground text-sm">
-                    {title} • {questionCount} questions        {" "}
+                    {title} • {questionCount} questions        
         </p>
-             {" "}
+             
       </div>
       {/* 2. Display the attempt count below the title */}
       <div>
@@ -88,28 +96,43 @@ export const QuizGeneratedMessage = ({
           </div>
         )}
       </div>
-           {" "}
+           
       <div className="flex flex-wrap gap-2">
-               {" "}
-        <Button onClick={handleStartQuiz} className="flex-1" size="lg"><PlayCircle className="mr-2 size-4" />Start Quiz  
-               
+               
+        <Button onClick={handleStartQuiz} className="flex-1" size="lg">
+          <PlayCircle className="mr-2 size-4" />
+          Start Quiz
         </Button>
-               {" "}
         <Button
           onClick={handleRegenerate}
           variant="outline"
           size="lg"
           disabled={regenerateQuiz.isPending}
         >
-                   {" "}
+                 
           <RefreshCw
             className={`size-4 ${regenerateQuiz.isPending ? "animate-spin" : ""}`}
-          />
-                 {" "}
+          />{" "}
+             
         </Button>
-             {" "}
+             
       </div>
          
+      <div>
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button className="w-full">Create Room</Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Create a room</DialogTitle>
+              <DialogDescription>
+                Share the link with people and let them give the quiz
+              </DialogDescription>
+            </DialogHeader>
+          </DialogContent>
+        </Dialog>
+      </div>
     </div>
   );
 };
