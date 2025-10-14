@@ -9,7 +9,7 @@ import {
   submissionsTable,
 } from "../db/schema";
 import { nanoid } from "nanoid";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql, not } from "drizzle-orm";
 
 const roomRoutes = new Hono<AppEnv>();
 
@@ -21,20 +21,28 @@ roomRoutes.get("/getAllRooms", async (c) => {
   if (!session?.user?.id) {
     return c.json({ error: "Unauthorized" }, 401);
   }
-  const rooms = await db
+
+  const roomsWithParticipantCount = await db
     .select({
       id: roomsTable.id,
       name: roomsTable.name,
       shareableCode: roomsTable.shareableCode,
       createdAt: roomsTable.createdAt,
       quizTitle: quizzesTable.title,
-      timeLimit : roomsTable.timeLimitSeconds
+      timeLimit: roomsTable.timeLimitSeconds,
+      participantCount: sql<number>`count(${participantsTable.id})`.mapWith(Number),
     })
     .from(roomsTable)
     .innerJoin(quizzesTable, eq(roomsTable.quizId, quizzesTable.id))
-    .where(eq(quizzesTable.ownerId, session.user.id))
+    .leftJoin(participantsTable, eq(roomsTable.id, participantsTable.roomId))
+    .where(and(
+      eq(quizzesTable.ownerId, session.user.id),
+      not(sql`${roomsTable.name} LIKE '%(Single Player)%'`)
+    ))
+    .groupBy(roomsTable.id, quizzesTable.title)
     .orderBy(desc(roomsTable.createdAt));
-  return c.json(rooms);
+
+  return c.json(roomsWithParticipantCount);
 });
 // POST /api/rooms - Create a new room from a quiz
 roomRoutes.post("/", async (c) => {
@@ -188,5 +196,55 @@ const room = await db.query.roomsTable.findFirst({
   });
 
   return c.json(submissions);
+});
+// GET /api/rooms/:roomId/analytics - Get results for a room (owner only)
+roomRoutes.get("/:roomId/analytics", async (c) => {
+  const db = getDb(c.env.DATABASE_URL);
+  const auth = createAuth(c.env, db);
+  const session = await auth.api.getSession({ headers: c.req.raw.headers });
+  const { roomId } = c.req.param();
+
+  if (!session?.user?.id) {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
+
+    const room = await db.query.roomsTable.findFirst({
+      where: eq(roomsTable.id, roomId),
+      with: {
+        quiz: true
+      }
+    });
+
+    if (!room || !room.quiz || room.quiz.ownerId !== session.user.id) {
+        return c.json({ error: "Room not found or you are not the owner" }, 404);
+    }
+  const submissions = await db.query.submissionsTable.findMany({
+    where: eq(submissionsTable.quizId, room.quizId),
+    with: {
+      participant: {
+        columns: {
+          id: true,
+          details: true,
+          joinedAt: true,
+        },
+      },
+    },
+    columns: {
+      id: true,
+      finalScore: true,
+      startedAt: true,
+      completedAt: true,
+      disqualified: true,
+    },
+  });
+
+  const averageScore = submissions.reduce((acc, sub) => acc + (sub.finalScore || 0), 0) / (submissions.length || 1);
+
+  return c.json({
+    room,
+    averageScore: parseFloat(averageScore.toFixed(2)),
+    participants: submissions.map(s => s.participant),
+    submissions,
+  });
 });
 export default roomRoutes;

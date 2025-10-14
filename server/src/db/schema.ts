@@ -198,7 +198,7 @@ id: text("id")
   isOpen: boolean("is_open").default(true),
    name: varchar("name", { length: 255 }).notNull().default("Unnamed Room"),
    createdAt: timestamp("created_at").defaultNow(),
-   
+
 });
 
 export const participantsTable = pgTable("participants", {
@@ -237,7 +237,7 @@ export const submissionsTable = pgTable("submissions", {
   completedAt: timestamp("completed_at"),
   durationSeconds: integer("duration_seconds"), // NEW
   disqualified: boolean("disqualified").default(false),
-  disqualificationReason: text("disqualification_reason"), 
+  disqualificationReason: text("disqualification_reason"),
   finished: boolean("finished").default(false)
 });
 
@@ -430,7 +430,7 @@ export const participantsRelations = relations(participantsTable, ({ one, many }
 // Relations for rooms table
 export const roomsRelations = relations(roomsTable, ({ one, many }) => ({
   quiz: one(quizzesTable, {
-    fields: [roomsTable.id],
+    fields: [roomsTable.quizId],
     references: [quizzesTable.id],
   }),
   participants: many(participantsTable),

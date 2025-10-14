@@ -32,7 +32,7 @@ export default function Nav() {
           <div className="bg-muted h-9 w-24 animate-pulse rounded-md" /> // Loading skeleton
         ) : isAuthenticated && user ? (
           <>
-            <Link to="/room">
+            <Link to="/rooms">
               <Button variant={"ghost"} className="cursor-pointer">
                 Rooms
               </Button>

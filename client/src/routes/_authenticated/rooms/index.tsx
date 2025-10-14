@@ -11,8 +11,8 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import apiClient from "@/lib/axios";
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
-import { Link } from "lucide-react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { Link as LinkIcon } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/rooms/")({
   component: RouteComponent,
@@ -66,7 +66,7 @@ function RouteComponent() {
                   <CardHeader className="flex justify-between">
                     <div className="flex items-center gap-3">
                       <CardTitle className="text-xl">{v.name}</CardTitle>
-                      <Link
+                      <LinkIcon
                         onClick={() => {
                           window.open(
                             `http://localhost:5173/${v.shareableCode}`,
@@ -77,7 +77,7 @@ function RouteComponent() {
                         className="hover:text-primary cursor-pointer"
                       >
                         Go
-                      </Link>
+                      </LinkIcon>
                     </div>
                     <Badge
                       variant={"outline"}
@@ -93,7 +93,13 @@ function RouteComponent() {
                   </CardContent>
                   <CardFooter>
                     <Button size={"sm"} variant={"outline"}>
-                      Get Analytics
+                      <Link
+                        to="/rooms/$roomId/analytics"
+                        params={{ roomId: v.id }}
+                      >
+                        Get Analytics
+                      </Link>
+                      
                     </Button>
                   </CardFooter>
                 </Card>
