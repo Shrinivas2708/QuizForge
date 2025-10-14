@@ -2,7 +2,7 @@ import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Button } from "./ui/button";
 import { ThemeButton } from "./toggle-theme";
 import { useAuth } from "@/context/AuthContext";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"; // Assuming you have an Avatar component
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { sidebarRoutes } from "@/lib/exports";
 
 export default function Nav() {
@@ -16,7 +16,7 @@ export default function Nav() {
   const navigate = useNavigate();
   return (
     <div
-      className={`flex w-full items-center px-5 py-3 ${isAuthenticatedRoute ? "justify-end" : "justify-between"}`}
+      className={`flex w-full items-center px-5 py-3 ${isAuthenticatedRoute ? "justify-end" : "justify-between border-b"}`}
     >
       {isAuthenticatedRoute ? (
         ""
@@ -28,20 +28,25 @@ export default function Nav() {
         </Link>
       )}
       <div className="flex items-center gap-3">
-        <ThemeButton />
         {isLoading ? (
           <div className="bg-muted h-9 w-24 animate-pulse rounded-md" /> // Loading skeleton
         ) : isAuthenticated && user ? (
-          // You can create a dropdown menu for profile/logout here
-          <Avatar
-            onClick={() => {
-              navigate({ to: "/profile" });
-            }}
-            className="size-9 cursor-pointer"
-          >
-            <AvatarImage src={user.image || ""} alt={user.name} />
-            <AvatarFallback>{user.name?.charAt(0)}</AvatarFallback>
-          </Avatar>
+          <>
+            <Link to="/room">
+              <Button variant={"ghost"} className="cursor-pointer">
+                Rooms
+              </Button>
+            </Link>
+            <Avatar
+              onClick={() => {
+                navigate({ to: "/profile" });
+              }}
+              className="size-9 cursor-pointer"
+            >
+              <AvatarImage src={user.image || ""} alt={user.name} />
+              <AvatarFallback>{user.name?.charAt(0)}</AvatarFallback>
+            </Avatar>
+          </>
         ) : (
           <>
             <Link to="/login">
@@ -54,6 +59,8 @@ export default function Nav() {
             </Link>
           </>
         )}
+        <ThemeButton />
+        
       </div>
     </div>
   );

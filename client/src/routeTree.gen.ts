@@ -16,7 +16,7 @@ import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedNewRouteImport } from './routes/_authenticated/new'
-import { Route as AuthenticatedRoomIndexRouteImport } from './routes/_authenticated/room/index'
+import { Route as AuthenticatedRoomsIndexRouteImport } from './routes/_authenticated/rooms/index'
 import { Route as AuthenticatedChatChatIdRouteImport } from './routes/_authenticated/chat/$chatId'
 import { Route as AuthenticatedQuizQuizIdTakeRouteImport } from './routes/_authenticated/quiz/$quizId/take'
 import { Route as AuthenticatedQuizQuizIdResultsRouteImport } from './routes/_authenticated/quiz/$quizId/results'
@@ -56,9 +56,9 @@ const AuthenticatedNewRoute = AuthenticatedNewRouteImport.update({
   path: '/new',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AuthenticatedRoomIndexRoute = AuthenticatedRoomIndexRouteImport.update({
-  id: '/room/',
-  path: '/room/',
+const AuthenticatedRoomsIndexRoute = AuthenticatedRoomsIndexRouteImport.update({
+  id: '/rooms/',
+  path: '/rooms/',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedChatChatIdRoute = AuthenticatedChatChatIdRouteImport.update({
@@ -93,7 +93,7 @@ export interface FileRoutesByFullPath {
   '/new': typeof AuthenticatedNewRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/chat/$chatId': typeof AuthenticatedChatChatIdRoute
-  '/room': typeof AuthenticatedRoomIndexRoute
+  '/rooms': typeof AuthenticatedRoomsIndexRoute
   '/quiz/$quizId/attempts': typeof AuthenticatedQuizQuizIdAttemptsRoute
   '/quiz/$quizId/results': typeof AuthenticatedQuizQuizIdResultsRoute
   '/quiz/$quizId/take': typeof AuthenticatedQuizQuizIdTakeRoute
@@ -106,7 +106,7 @@ export interface FileRoutesByTo {
   '/new': typeof AuthenticatedNewRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/chat/$chatId': typeof AuthenticatedChatChatIdRoute
-  '/room': typeof AuthenticatedRoomIndexRoute
+  '/rooms': typeof AuthenticatedRoomsIndexRoute
   '/quiz/$quizId/attempts': typeof AuthenticatedQuizQuizIdAttemptsRoute
   '/quiz/$quizId/results': typeof AuthenticatedQuizQuizIdResultsRoute
   '/quiz/$quizId/take': typeof AuthenticatedQuizQuizIdTakeRoute
@@ -121,7 +121,7 @@ export interface FileRoutesById {
   '/_authenticated/new': typeof AuthenticatedNewRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/chat/$chatId': typeof AuthenticatedChatChatIdRoute
-  '/_authenticated/room/': typeof AuthenticatedRoomIndexRoute
+  '/_authenticated/rooms/': typeof AuthenticatedRoomsIndexRoute
   '/_authenticated/quiz/$quizId/attempts': typeof AuthenticatedQuizQuizIdAttemptsRoute
   '/_authenticated/quiz/$quizId/results': typeof AuthenticatedQuizQuizIdResultsRoute
   '/_authenticated/quiz/$quizId/take': typeof AuthenticatedQuizQuizIdTakeRoute
@@ -136,7 +136,7 @@ export interface FileRouteTypes {
     | '/new'
     | '/profile'
     | '/chat/$chatId'
-    | '/room'
+    | '/rooms'
     | '/quiz/$quizId/attempts'
     | '/quiz/$quizId/results'
     | '/quiz/$quizId/take'
@@ -149,7 +149,7 @@ export interface FileRouteTypes {
     | '/new'
     | '/profile'
     | '/chat/$chatId'
-    | '/room'
+    | '/rooms'
     | '/quiz/$quizId/attempts'
     | '/quiz/$quizId/results'
     | '/quiz/$quizId/take'
@@ -163,7 +163,7 @@ export interface FileRouteTypes {
     | '/_authenticated/new'
     | '/_authenticated/profile'
     | '/_authenticated/chat/$chatId'
-    | '/_authenticated/room/'
+    | '/_authenticated/rooms/'
     | '/_authenticated/quiz/$quizId/attempts'
     | '/_authenticated/quiz/$quizId/results'
     | '/_authenticated/quiz/$quizId/take'
@@ -228,11 +228,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedNewRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/room/': {
-      id: '/_authenticated/room/'
-      path: '/room'
-      fullPath: '/room'
-      preLoaderRoute: typeof AuthenticatedRoomIndexRouteImport
+    '/_authenticated/rooms/': {
+      id: '/_authenticated/rooms/'
+      path: '/rooms'
+      fullPath: '/rooms'
+      preLoaderRoute: typeof AuthenticatedRoomsIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/chat/$chatId': {
@@ -270,7 +270,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedNewRoute: typeof AuthenticatedNewRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedChatChatIdRoute: typeof AuthenticatedChatChatIdRoute
-  AuthenticatedRoomIndexRoute: typeof AuthenticatedRoomIndexRoute
+  AuthenticatedRoomsIndexRoute: typeof AuthenticatedRoomsIndexRoute
   AuthenticatedQuizQuizIdAttemptsRoute: typeof AuthenticatedQuizQuizIdAttemptsRoute
   AuthenticatedQuizQuizIdResultsRoute: typeof AuthenticatedQuizQuizIdResultsRoute
   AuthenticatedQuizQuizIdTakeRoute: typeof AuthenticatedQuizQuizIdTakeRoute
@@ -280,7 +280,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedNewRoute: AuthenticatedNewRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedChatChatIdRoute: AuthenticatedChatChatIdRoute,
-  AuthenticatedRoomIndexRoute: AuthenticatedRoomIndexRoute,
+  AuthenticatedRoomsIndexRoute: AuthenticatedRoomsIndexRoute,
   AuthenticatedQuizQuizIdAttemptsRoute: AuthenticatedQuizQuizIdAttemptsRoute,
   AuthenticatedQuizQuizIdResultsRoute: AuthenticatedQuizQuizIdResultsRoute,
   AuthenticatedQuizQuizIdTakeRoute: AuthenticatedQuizQuizIdTakeRoute,

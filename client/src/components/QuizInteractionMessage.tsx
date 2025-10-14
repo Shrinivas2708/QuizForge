@@ -1,20 +1,15 @@
-// components/QuizGeneratedMessage.tsx
+// client/src/components/QuizInteractionMessage.tsx
+
 import { Button } from "./ui/button";
-import { PlayCircle, RefreshCw } from "lucide-react";
+import { PlayCircle, RefreshCw, DoorOpen } from "lucide-react"; // Import DoorOpen
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useGenerateQuiz } from "../hooks/useGenerateQuiz";
 import { useQuery } from "@tanstack/react-query";
 import apiClient from "../lib/axios";
 import { Badge } from "./ui/badge";
 import { Spinner } from "./ui/spinner";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "./ui/dialog";
+import { CreateRoomDialog } from "./CreateRoomDialog"; // Import the new dialog
+import { useEffect, useState } from "react";
 
 interface QuizGeneratedMessageProps {
   quizId: string;
@@ -35,8 +30,8 @@ export const QuizGeneratedMessage = ({
   const regenerateQuiz = useGenerateQuiz({
     onSuccess() {},
   });
+  const [hasActiveRoom, setHasActiveRoom] = useState(false);
 
-  // 1. Fetch the attempt count for this specific quiz
   const { data: attemptsData, isLoading: isLoadingAttempts } = useQuery<{
     count: number;
   }>({
@@ -48,6 +43,25 @@ export const QuizGeneratedMessage = ({
       return response.data;
     },
   });
+
+  const { data: roomData } = useQuery({
+    queryKey: ["room", quizId, "status"],
+    queryFn: async () => {
+      // This endpoint doesn't exist yet, we'll assume it will for now
+      try {
+        const response = await apiClient.get(`/rooms/${quizId}/status`);
+        return response.data;
+      } catch (error) {
+        return null;
+      }
+    },
+  });
+
+  useEffect(() => {
+    if (roomData) {
+      setHasActiveRoom(true);
+    }
+  }, [roomData]);
 
   const attemptCount = attemptsData?.count || 0;
 
@@ -70,18 +84,16 @@ export const QuizGeneratedMessage = ({
       },
     });
   };
-  const createRoomHandler = () => {};
+
   return (
     <div className="from-primary/5 to-primary/10 space-y-4 rounded-lg border bg-gradient-to-br p-6">
-           
       <div>
-                <h3 className="text-lg font-semibold">Quiz Ready!</h3>       
+        <h3 className="text-lg font-semibold">Quiz Ready!</h3>
         <p className="text-muted-foreground text-sm">
-                    {title} • {questionCount} questions        
+          {title} • {questionCount} questions
         </p>
-             
       </div>
-      {/* 2. Display the attempt count below the title */}
+
       <div>
         {isLoadingAttempts ? (
           <Spinner />
@@ -93,12 +105,17 @@ export const QuizGeneratedMessage = ({
             <Link to="/quiz/$quizId/attempts" params={{ quizId }}>
               <p className="hover:underline"> See Attempts</p>
             </Link>
+            {hasActiveRoom && (
+              <Badge variant="secondary">
+                <DoorOpen className="mr-1 h-3 w-3" />
+                Active Room
+              </Badge>
+            )}
           </div>
         )}
       </div>
-           
+
       <div className="flex flex-wrap gap-2">
-               
         <Button onClick={handleStartQuiz} className="flex-1" size="lg">
           <PlayCircle className="mr-2 size-4" />
           Start Quiz
@@ -109,29 +126,16 @@ export const QuizGeneratedMessage = ({
           size="lg"
           disabled={regenerateQuiz.isPending}
         >
-                 
           <RefreshCw
             className={`size-4 ${regenerateQuiz.isPending ? "animate-spin" : ""}`}
-          />{" "}
-             
+          />
         </Button>
-             
       </div>
-         
+
       <div>
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button className="w-full">Create Room</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create a room</DialogTitle>
-              <DialogDescription>
-                Share the link with people and let them give the quiz
-              </DialogDescription>
-            </DialogHeader>
-          </DialogContent>
-        </Dialog>
+        <CreateRoomDialog quizId={quizId}>
+          <Button className="w-full">Create Room</Button>
+        </CreateRoomDialog>
       </div>
     </div>
   );

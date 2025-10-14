@@ -173,7 +173,7 @@ export function QuizTakingScreen({ quizId }: QuizTakingScreenProps) {
     document.addEventListener("fullscreenchange", handleFullScreenChange);
     return () => {
       document.removeEventListener("fullscreenchange", handleFullScreenChange);
-      document.addEventListener("contextmenu", function (event) {
+      document.removeEventListener("contextmenu", function (event) {
         event.preventDefault();
       });
     };

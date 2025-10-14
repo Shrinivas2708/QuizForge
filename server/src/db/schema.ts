@@ -179,8 +179,11 @@ export const proctoringLevelEnum = pgEnum("proctoring_level", [
 ]);
 // here we store abt the rooms like te code participants time limits etc
 export const roomsTable = pgTable("rooms", {
-  id: text("id")
+id: text("id")
     .primaryKey()
+    .default(sql`gen_random_uuid()`),
+    quizId: text("quiz_id")
+    .notNull()
     .references(() => quizzesTable.id, { onDelete: "cascade" }),
   shareableCode: varchar("shareable_code", { length: 10 }).notNull().unique(),
   // MODIFIED: From enum to a flexible array of strings
@@ -188,11 +191,14 @@ export const roomsTable = pgTable("rooms", {
     .$type<string[]>()
     .notNull()
     .default(["name"]),
-  timeLimitSeconds: integer("time_limit_seconds"),
+  timeLimitSeconds: integer("time_limit_seconds").notNull().default(1800),
   proctoringLevel: proctoringLevelEnum("proctoring_level")
     .notNull()
     .default("basic"),
   isOpen: boolean("is_open").default(true),
+   name: varchar("name", { length: 255 }).notNull().default("Unnamed Room"),
+   createdAt: timestamp("created_at").defaultNow(),
+   
 });
 
 export const participantsTable = pgTable("participants", {

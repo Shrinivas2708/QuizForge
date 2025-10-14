@@ -47,7 +47,6 @@ submissionRoutes.post("/start", async (c) => {
       return c.json({ error: "quizId is required" }, 400);
     }
 
-    // Verify quiz exists
     const quiz = await db.query.quizzesTable.findFirst({
       where: eq(quizzesTable.id, quizId),
     });
@@ -56,24 +55,31 @@ submissionRoutes.post("/start", async (c) => {
       return c.json({ error: "Quiz not found" }, 404);
     }
 
-    // Find or create room
+    // Find or create a default "single-player" room for this quiz.
     let room = await db.query.roomsTable.findFirst({
-      where: eq(roomsTable.id, quizId),
+      where: and(
+        eq(roomsTable.quizId, quizId),
+        eq(roomsTable.name, `${quiz.title} (Single Player)`)
+      ),
     });
 
     if (!room) {
-      const inserted = await db
+      room = await db
         .insert(roomsTable)
         .values({
-          id: quizId,
-          shareableCode: nanoid(8),
+          quizId: quizId,
+          name: `${quiz.title} (Single Player)`,
+          shareableCode: nanoid(8), // Needs a unique code to satisfy the schema
         })
-        .returning();
-      room = inserted[0];
+        .returning()
+        .then((res) => res[0]);
     }
 
-    // Create participant
-    const participantInserted = await db
+    // Create participant, associated with the room's actual ID
+    if (!room) {
+      return c.json({ error: "Failed to create or find a room for the quiz." }, 500);
+    }
+    const participant = await db
       .insert(participantsTable)
       .values({
         roomId: room.id,
@@ -83,78 +89,26 @@ submissionRoutes.post("/start", async (c) => {
           userId: session.user.id,
         },
       })
-      .returning();
-    const participant = participantInserted[0];
+      .returning()
+      .then((res) => res[0]);
 
-    // Get existing submission count
-    const existingSubmissions = await db
-      .select()
-      .from(submissionsTable)
-      .where(
-        and(
-          eq(submissionsTable.participantId, participant.id),
-          eq(submissionsTable.quizId, quizId)
-        )
-      );
-
-    // Create submission
-    const submissionInserted = await db
-      .insert(submissionsTable)
-      .values({
-        participantId: participant.id,
-        quizId,
-        attemptNumber: existingSubmissions.length + 1,
-      })
-      .returning();
-    const submission = submissionInserted[0];
-
-    // Get questions (without correct answers)
-    const questions = await db
-      .select({
-        id: questionsTable.id,
-        questionType: questionsTable.questionType,
-        questionText: questionsTable.questionText,
-        data: questionsTable.data,
-      })
-      .from(questionsTable)
-      .where(eq(questionsTable.quizId, quizId));
-
-    const questionsForParticipant = questions.map((q) => ({
-      ...q,
-      data: { options: q.data.options },
-    }));
-    const priorDisqualifiedSubmission = await db
-      .select({ id: submissionsTable.id })
-      .from(submissionsTable)
-      .innerJoin(
-        participantsTable,
-        eq(submissionsTable.participantId, participantsTable.id)
-      )
-      .where(
-        and(
-          eq(submissionsTable.quizId, quizId),
-          sql`${participantsTable.details}->>'userId' = ${session.user.id}`,
-          eq(submissionsTable.disqualified, true)
-        )
-      )
-      .limit(1);
+    const existingSubmissions = await db.select().from(submissionsTable).where(and(eq(submissionsTable.participantId, participant.id), eq(submissionsTable.quizId, quizId)));
+    const submission = await db.insert(submissionsTable).values({ participantId: participant.id, quizId, attemptNumber: existingSubmissions.length + 1 }).returning().then(res => res[0]);
+    const questions = await db.select({ id: questionsTable.id, questionType: questionsTable.questionType, questionText: questionsTable.questionText, data: questionsTable.data }).from(questionsTable).where(eq(questionsTable.quizId, quizId));
+    const questionsForParticipant = questions.map((q) => ({ ...q, data: { options: q.data.options } }));
+    const priorDisqualifiedSubmission = await db.select({ id: submissionsTable.id }).from(submissionsTable).innerJoin(participantsTable, eq(submissionsTable.participantId, participantsTable.id)).where(and(eq(submissionsTable.quizId, quizId), sql`${participantsTable.details}->>'userId' = ${session.user.id}`, eq(submissionsTable.disqualified, true))).limit(1);
 
     if (priorDisqualifiedSubmission.length > 0) {
-      return c.json(
-        {
-          error:
-            "You have been disqualified from this quiz and cannot start a new attempt.",
-        },
-        403
-      );
+      return c.json({ error: "You have been disqualified from this quiz and cannot start a new attempt." }, 403);
     }
+
     return c.json({ submission, questions: questionsForParticipant }, 201);
+
   } catch (error) {
     console.error("Error starting submission:", error);
     return c.json({ error: "Failed to start submission" }, 500);
   }
 });
-
 // POST /api/submissions/:submissionId/answer - Submit an answer
 submissionRoutes.post("/:submissionId/answer", async (c) => {
   try {
