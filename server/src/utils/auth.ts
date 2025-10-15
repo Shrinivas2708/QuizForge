@@ -1,10 +1,107 @@
+// import { betterAuth, type User, type Account } from "better-auth";
+// import { drizzleAdapter } from "better-auth/adapters/drizzle";
+// import { usersTable, accountsTable, sessionsTable } from "../db/schema";
+// import { eq } from "drizzle-orm";
+// import * as schema from "../db/schema";
+// import { DbInstance, EnvBindings } from "../types";
+// import { randomBytes, scryptSync } from 'crypto';
+// export const createAuth = (env: EnvBindings, db: DbInstance) => {
+//   return betterAuth({
+//     database: drizzleAdapter(db, {
+//       provider: "pg",
+//       schema: {
+//         user: usersTable,
+//         account: accountsTable,
+//         session: sessionsTable,
+//         verification: schema.verificationTokensTable,
+//       },
+//     }),
+//     basePath: "/auth",
+//     baseURL: env.BETTER_AUTH_URL,
+//     secret: env.BETTER_AUTH_SECRET,
+//     emailAndPassword: {
+//       enabled: true,
+//       password: {
+//         hash: async (password) => {
+//           const salt = randomBytes(16).toString('hex')
+//           const hash = scryptSync(password, salt, 64).toString('hex')
+//           return `${salt}:${hash}`
+//         },
+//         verify: async ({ hash, password }) => {
+//           const [salt, key] = hash.split(':')
+//           const keyBuffer = Buffer.from(key, 'hex')
+//           const hashBuffer = scryptSync(password, salt, 64)
+//           return keyBuffer.equals(hashBuffer)
+//         },
+//       }
+//     },
+//     socialProviders: {
+//       google: {
+//         clientId: env.GOOGLE_CLIENT_ID,
+//         clientSecret: env.GOOGLE_CLIENT_SECRET,
+//       },
+//     },
+//     callbacks: {
+//       signIn: async ({
+//         profile,
+//         account,
+//         isNewUser,
+//       }: {
+//         profile: User;
+//         account: Account;
+//         isNewUser: boolean;
+//       }) => {
+//         console.log("signIn callback invoked. providerId:", account?.providerId);
+//         console.log("profile:", profile);
+//         console.log("isNewUser:", isNewUser);
+
+//         if (account?.providerId === "google" && profile?.email) {
+//           const existingUser = await db.query.usersTable.findFirst({
+//             where: eq(schema.usersTable.email, profile.email),
+//           });
+//           if (!existingUser) {
+//             await db.insert(usersTable).values({
+//               email: profile.email,
+//               name: profile.name,
+//               image: profile.image,
+//               emailVerified: true,
+//             });
+//           }
+//           console.log("Returning redirect to dashboard for google login");
+//           return `${env.FRONTEND_URL}/auth-callback`;
+//         }
+
+//         console.log("Falling back to default / redirect");
+//         return {
+//           redirect: `${env.FRONTEND_URL}/`,
+//         };
+//       },
+//     },
+//     trustedOrigins: [
+//       "http://127.0.0.1:5173",
+//       "http://127.0.0.1:3000",
+//       "http://localhost:3000",
+//       "https://quizforge.shriii.xyz",
+//       "http://localhost:5173",
+//       "https://server.ssherikar2005.workers.dev",
+//     ],
+//     // ⚠️ THIS IS THE CRITICAL PART - MAKE SURE IT'S EXACTLY LIKE THIS:
+//     cookie: {
+//       secure: true,
+//       httpOnly: true,
+//       sameSite: "none", // ⚠️ Must be lowercase "none", not "None"
+//       path: "/",
+//     },
+//   });
+// };
+
 import { betterAuth, type User, type Account } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { usersTable, accountsTable, sessionsTable } from "../db/schema";
 import { eq } from "drizzle-orm";
 import * as schema from "../db/schema";
 import { DbInstance, EnvBindings } from "../types";
-import { randomBytes, scryptSync } from 'crypto';
+
 export const createAuth = (env: EnvBindings, db: DbInstance) => {
   return betterAuth({
     database: drizzleAdapter(db, {
@@ -21,19 +118,6 @@ export const createAuth = (env: EnvBindings, db: DbInstance) => {
     secret: env.BETTER_AUTH_SECRET,
     emailAndPassword: {
       enabled: true,
-      password: {
-        hash: async (password) => {
-          const salt = randomBytes(16).toString('hex')
-          const hash = scryptSync(password, salt, 64).toString('hex')
-          return `${salt}:${hash}`
-        },
-        verify: async ({ hash, password }) => {
-          const [salt, key] = hash.split(':')
-          const keyBuffer = Buffer.from(key, 'hex')
-          const hashBuffer = scryptSync(password, salt, 64)
-          return keyBuffer.equals(hashBuffer)
-        },
-      }
     },
     socialProviders: {
       google: {
@@ -51,7 +135,10 @@ export const createAuth = (env: EnvBindings, db: DbInstance) => {
         account: Account;
         isNewUser: boolean;
       }) => {
-        console.log("signIn callback invoked. providerId:", account?.providerId);
+        console.log(
+          "signIn callback invoked. providerId:",
+          account?.providerId
+        );
         console.log("profile:", profile);
         console.log("isNewUser:", isNewUser);
 
@@ -82,15 +169,13 @@ export const createAuth = (env: EnvBindings, db: DbInstance) => {
       "http://127.0.0.1:3000",
       "http://localhost:3000",
       "https://quizforge.shriii.xyz",
-      "http://localhost:5173",
-      "https://server.ssherikar2005.workers.dev",
+      "http://localhost:5173"
     ],
-    // ⚠️ THIS IS THE CRITICAL PART - MAKE SURE IT'S EXACTLY LIKE THIS:
     cookie: {
-      secure: true,
+      domain: env.IS_PROD ? ".shriii.xyz" : undefined, 
+      secure: env.IS_PROD, 
       httpOnly: true,
-      sameSite: "none", // ⚠️ Must be lowercase "none", not "None"
-      path: "/",
+      sameSite: env.IS_PROD ? "none" : "lax", 
     },
   });
 };
