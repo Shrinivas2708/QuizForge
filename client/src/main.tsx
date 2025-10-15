@@ -9,6 +9,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { ThemeProvider } from './components/providers/theme-provider.tsx'
 import { AuthProvider, useAuth } from './context/AuthContext.tsx'
 import { Spinner } from './components/ui/spinner.tsx'
+import { NotFound } from './components/NotFound.tsx'
 const queryClient = new QueryClient({
   defaultOptions:{
     queries:{
@@ -27,6 +28,7 @@ const router = createRouter({
   scrollRestoration: true,
   defaultStructuralSharing: true,
   defaultPreloadStaleTime: 0,
+  defaultNotFoundComponent:NotFound
 })
 
 declare module '@tanstack/react-router' {
