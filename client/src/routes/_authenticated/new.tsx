@@ -38,21 +38,26 @@ function RouteComponent() {
     const textPart = message.text?.trim()
 
     if (filePart && filePart.url) {
-      // --- FILE UPLOAD LOGIC (unchanged) ---
       try {
         const response = await fetch(filePart.url)
         const blob = await response.blob()
         const file = new File([blob], filePart.filename || 'untitled', {
           type: filePart.mediaType,
         })
+        console.log(file.type);
+        if(file.type == "application/pdf" ) {
+
         setIsChatStarted(true)
         uploadFile.mutate({ file, title: file.name })
+        }else{
+          toast.error("currently we only support pdf files.")
+        }
+        
       } catch (error) {
         toast.error('There was an error processing the file.')
         console.error(error)
       }
     } else if (textPart) {
-      // --- NEW TEXT SUBMISSION LOGIC ---
       setIsChatStarted(true)
       createTextSource.mutate({ content: textPart })
     } else {
