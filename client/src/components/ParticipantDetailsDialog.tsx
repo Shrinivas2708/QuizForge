@@ -11,7 +11,17 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import apiClient from "@/lib/axios";
 import { useQuery } from "@tanstack/react-query";
-import { CheckCircle, XCircle, AlertTriangle, Eye } from "lucide-react";
+import {
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
+  Eye,
+  Info,
+  Clock,
+  Calendar,
+  Percent,
+  Timer,
+} from "lucide-react";
 import { useState } from "react";
 
 type Submission = {
@@ -28,6 +38,29 @@ type Submission = {
   };
 };
 
+// NEW: A helper component for the summary stats for better readability
+function StatCard({
+  icon: Icon,
+  title,
+  value,
+  valueClassName = "text-2xl",
+}: {
+  icon: React.ElementType;
+  title: string;
+  value: string | React.ReactNode;
+  valueClassName?: string;
+}) {
+  return (
+    <div className="flex items-center space-x-4 rounded-lg border bg-card p-4 text-card-foreground">
+      <Icon className="h-6 w-6 text-muted-foreground" />
+      <div>
+        <p className="text-sm font-medium text-muted-foreground">{title}</p>
+        <p className={`font-bold ${valueClassName}`}>{value}</p>
+      </div>
+    </div>
+  );
+}
+
 export function ParticipantDetailsDialog({
   submission,
 }: {
@@ -41,8 +74,6 @@ export function ParticipantDetailsDialog({
       const response = await apiClient.get(
         `/submissions/${submission.id}/results`,
       );
-      console.log(response.data);
-
       return response.data;
     },
     enabled: open,
@@ -58,7 +89,6 @@ export function ParticipantDetailsDialog({
     },
     enabled: open,
   });
-  console.log(submission);
 
   return (
     <>
@@ -66,172 +96,179 @@ export function ParticipantDetailsDialog({
         <Eye className="mr-1 h-4 w-4" />
         Analysis
       </Button>
-      <Dialog open={open} onOpenChange={setOpen} >
-        <DialogContent className="max-h-[90vh]  max-w-5xl overflow-y-auto">
+      <Dialog open={open} onOpenChange={setOpen}>
+        {/* CHANGE: Increased max-width for the new layout */}
+        <DialogContent className="max-h-[90vh] w-[90vw] max-w-[1280px] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>
-              Detailed Analysis -{" "}
-              {submission.participant.details.name || "Anonymous"}
+            <DialogTitle className="text-xl">
+              Detailed Analysis:{" "}
+              <span className="font-bold text-primary">
+                {submission.participant.details.name || "Anonymous"}
+              </span>
             </DialogTitle>
             <DialogDescription>
-              Complete submission details including timing, answers, and
-              proctoring events
+              A complete breakdown of the submission, including timing, answers,
+              and proctoring events.
             </DialogDescription>
           </DialogHeader>
 
           {isLoading ? (
-            <div className="flex justify-center py-8">
+            <div className="flex h-64 items-center justify-center">
               <Spinner />
             </div>
           ) : (
-            <div className="space-y-6">
-              {/* Summary Stats */}
-              <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium">
-                      Final Score
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">
-                      {submission.finalScore}%
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium">
-                      Duration
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">
-                      {submission.durationSeconds
-                        ? `${Math.floor(submission.durationSeconds / 60)}m ${submission.durationSeconds % 60}s`
-                        : "N/A"}
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium">
-                      Started At
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-sm">
-                      {new Date(submission.startedAt).toLocaleString()}
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium">
-                      Completed At
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-sm">
-                      {submission.completedAt
-                        ? new Date(submission.completedAt).toLocaleString()
-                        : "Not completed"}
-                    </div>
-                  </CardContent>
-                </Card>
+            // CHANGE: Main layout is now a 3-column grid
+            <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+              {/* Left Column for Stats */}
+              <div className="col-span-1 flex flex-col gap-6">
+                <h3 className="text-lg font-semibold">Summary</h3>
+                <StatCard
+                  icon={Percent}
+                  title="Final Score"
+                  value={`${submission.finalScore}%`}
+                />
+                <StatCard
+                  icon={Timer}
+                  title="Duration"
+                  value={
+                    submission.durationSeconds
+                      ? `${Math.floor(submission.durationSeconds / 60)}m ${submission.durationSeconds % 60}s`
+                      : "N/A"
+                  }
+                />
+                <StatCard
+                  icon={Calendar}
+                  title="Started At"
+                  value={new Date(submission.startedAt).toLocaleString()}
+                  valueClassName="text-sm"
+                />
+                <StatCard
+                  icon={Clock}
+                  title="Completed At"
+                  value={
+                    submission.completedAt
+                      ? new Date(submission.completedAt).toLocaleString()
+                      : "Not completed"
+                  }
+                  valueClassName="text-sm"
+                />
+
+                {/* Proctoring Events */}
+                {proctoringEvents && proctoringEvents.length > 0 && (
+                  <Card className="mt-4">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <AlertTriangle className="h-5 w-5 text-yellow-500" />
+                        Proctoring Events ({proctoringEvents.length})
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {proctoringEvents.map((event: any, idx: number) => (
+                          <div
+                            key={idx}
+                            className="flex items-center justify-between text-sm"
+                          >
+                            <div>
+                              <p className="font-medium capitalize">
+                                {event.eventType.replace(/_/g, " ")}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {new Date(event.timestamp).toLocaleString()}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
               </div>
 
-              {/* Proctoring Events */}
-              {proctoringEvents && proctoringEvents.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <AlertTriangle className="h-5 w-5 text-yellow-500" />
-                      Proctoring Events ({proctoringEvents.length})
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      {proctoringEvents.map((event: any, idx: number) => (
-                        <div
-                          key={idx}
-                          className="flex items-center justify-between rounded-lg border p-3"
-                        >
-                          <div>
-                            <p className="font-medium capitalize">
-                              {event.eventType.replace(/_/g, " ")}
-                            </p>
-                            <p className="text-muted-foreground text-xs">
-                              {new Date(event.timestamp).toLocaleString()}
-                            </p>
-                          </div>
-                          {event.details && (
-                            <Badge variant="outline">
-                              {JSON.stringify(event.details)}
+              {/* Right Column for Question Breakdown */}
+              <div className="col-span-1 lg:col-span-2">
+                <h3 className="mb-6 text-lg font-semibold">
+                  Question Breakdown
+                </h3>
+                <div className="space-y-4">
+                  {detailedResults?.answers?.map((answer: any, idx: number) => {
+                    const isCorrect = answer.isCorrect;
+                    const borderColor = isCorrect
+                      ? "border-green-500/50"
+                      : "border-red-500/50";
+                    const bgColor = isCorrect
+                      ? "bg-green-500/10"
+                      : "bg-red-500/10";
+
+                    return (
+                      <div
+                        key={idx}
+                        className={`space-y-3 rounded-lg border-l-4 p-4 ${borderColor} ${bgColor}`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <p className="flex-1 font-medium text-card-foreground">
+                            Q{idx + 1}. {answer.question.questionText}
+                          </p>
+                          {answer.givenAnswer === null ? (
+                            <Badge variant="secondary">Skipped</Badge>
+                          ) : isCorrect ? (
+                            <Badge variant="default" className="bg-green-600">
+                              <CheckCircle className="mr-1 h-3 w-3" /> Correct
+                            </Badge>
+                          ) : (
+                            <Badge variant="destructive">
+                              <XCircle className="mr-1 h-3 w-3" /> Incorrect
                             </Badge>
                           )}
                         </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
 
-              {/* Question-by-Question Breakdown */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Question Breakdown</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {detailedResults?.answers?.map(
-                      (answer: any, idx: number) => (
-                        <div
-                          key={idx}
-                          className="space-y-2 rounded-lg border p-4"
-                        >
-                          <div className="flex items-start justify-between">
-                            <p className="font-medium">
-                              Q{idx + 1}. {answer.question.questionText}
-                            </p>
-                            {answer.givenAnswer === null ? (
-                              <Badge variant="secondary">Skipped</Badge>
-                            ) : answer.isCorrect ? (
-                              <Badge variant="default">
-                                <CheckCircle className="mr-1 h-3 w-3" />
-                                Correct
-                              </Badge>
+                        <div className="space-y-3 text-sm">
+                          {/* Given Answer */}
+                          <div className="flex items-start gap-2">
+                            {isCorrect ? (
+                              <CheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-green-500" />
                             ) : (
-                              <Badge variant="destructive">
-                                <XCircle className="mr-1 h-3 w-3" />
-                                Incorrect
-                              </Badge>
+                              <XCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-500" />
                             )}
+                            <div>
+                              <span className="font-semibold">Your Answer:</span>{" "}
+                              <span className="text-muted-foreground">
+                                {answer.givenAnswer || "Not answered"}
+                              </span>
+                            </div>
                           </div>
-                          <div className="space-y-1 text-sm">
-                            <p className="text-muted-foreground">
-                              <span className="font-medium">Given Answer:</span>{" "}
-                              {answer.givenAnswer || "Not answered"}
-                            </p>
-                            <p className="text-muted-foreground">
-                              <span className="font-medium">
-                                Correct Answer:
-                              </span>{" "}
-                              {answer.question.data.correctAnswer}
-                            </p>
-                            {answer.question.feedback && (
-                              <p className="text-muted-foreground">
-                                <span className="font-medium">Feedback:</span>{" "}
-                                {answer.question.feedback}
-                              </p>
-                            )}
-                          </div>
+                          
+                          {/* Correct Answer (only shown if incorrect) */}
+                          {!isCorrect && (
+                            <div className="flex items-start gap-2">
+                              <CheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-green-500" />
+                               <div>
+                                <span className="font-semibold">Correct Answer:</span>{" "}
+                                <span className="text-muted-foreground">
+                                  {answer.question.data.correctAnswer}
+                                </span>
+                               </div>
+                            </div>
+                          )}
+                          
+                          {/* Feedback */}
+                          {answer.question.feedback && (
+                            <div className="mt-2 flex items-start gap-3 rounded-md bg-background/50 p-3">
+                              <Info className="h-4 w-4 flex-shrink-0 text-blue-500 mt-0.5" />
+                              <div>
+                                <span className="font-semibold">Feedback:</span>
+                                <p className="text-muted-foreground">
+                                 {answer.question.feedback}
+                                </p>
+                              </div>
+                            </div>
+                          )}
                         </div>
-                      ),
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           )}
         </DialogContent>

@@ -1,10 +1,10 @@
 import { GithubIcon } from 'lucide-react'
 import { Button } from '../ui/button'
 import { Link } from '@tanstack/react-router'
-
+import LandingImg from "/landing.png"
 export default function Home() {
   return (
-    <section className="flex flex-col justify-center items-center gap-7 text-center px-4">
+    <section className="flex flex-col justify-center items-center gap-7 text-center px-4 perspective-[1000px]">
       <p className="text-5xl font-bold mt-[6rem]">
         From Syllabus to Quiz in Seconds
       </p>
@@ -30,6 +30,11 @@ export default function Home() {
             on GitHub
           </a>
         </Button>
+      </div>
+      <div className='max-w-6xl border rounded mt-3
+                    transform-gpu hover:scale-[0.98] hover:rotate-x-1 hover:translate-z-[-20px]
+                    transition-all duration-300 ease-in-out'>
+        <img src={LandingImg} alt="Landing image" className='rounded' />
       </div>
     </section>
   )
