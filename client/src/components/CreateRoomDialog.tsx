@@ -24,6 +24,8 @@ import {
   SelectValue,
 } from "./ui/select";
 import { Checkbox } from "./ui/checkbox";
+import { useNavigate } from "@tanstack/react-router";
+import { ROOMS_URL } from "@/lib/exports";
 
 interface CreateRoomDialogProps {
   quizId: string;
@@ -38,15 +40,26 @@ const createRoomSchema = z.object({
 });
 
 export function CreateRoomDialog({ quizId, children }: CreateRoomDialogProps) {
+  const navigate = useNavigate()
   const createRoomMutation = useMutation({
     mutationFn: async (values: z.infer<typeof createRoomSchema>) => {
       const response = await apiClient.post("/rooms", { ...values, quizId });
       return response.data;
     },
-    onSuccess: (data) => {
-      toast.success("Room created successfully!", {
-        description: `Shareable code: ${data.shareableCode}`,
-      });
+    onSuccess: async (data) => {
+   
+      
+      try {
+        
+      await navigator.clipboard.writeText(`${ROOMS_URL}/${data.shareableCode}`)
+      toast.success("Room created successfully and link copied to clipboard !");
+      } catch (error) {
+           toast.success("Room created successfully!");
+           toast.error("Failed to copy to clipboard")
+      }
+      setInterval(()=>{
+        navigate({to:"/rooms"})
+      },2000)
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.error || "Failed to create room.");

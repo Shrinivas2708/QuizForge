@@ -204,9 +204,75 @@ app.get("/auth/sso-callback", async (c) => {
   return c.redirect(redirectUrl.toString());
 });
 app.all("/auth/*", async (c) => {
+  // console.log(typeof c.env.IS_PROD)
+  // @ts-ignore
+  const isProd = c.env.IS_PROD === "true"; // as worker casts env booleans to string so IS_PROD is even tho boolean but it gets casted to string
+
+  if(isProd ){
+    try {
+    console.log("🔵 Auth request:", c.req.method, c.req.path);
+    console.log("🔵 Request headers:", Object.fromEntries(c.req.raw.headers.entries()));
+    
+    if (!c.env.DATABASE_URL) {
+      throw new Error("DATABASE_URL not configured");
+    }
+    
+    const db = getDb(c.env.DATABASE_URL);
+    console.log("✅ DB connection created");
+    
+    const auth = createAuth(c.env, db);
+    console.log("✅ Auth instance created");
+    
+    const response = await auth.handler(c.req.raw);
+    console.log("✅ Auth handler response:", response.status);
+    
+    // Log original cookies
+    const setCookieHeaders = response.headers.getSetCookie();
+    console.log("🍪 Original Set-Cookie headers:", setCookieHeaders);
+    
+    // WORKAROUND: Manually fix SameSite attribute
+    if (setCookieHeaders.length > 0) {
+      const newResponse = new Response(response.body, response);
+      
+      // Remove old set-cookie headers
+      newResponse.headers.delete('set-cookie');
+      
+      // Add modified cookies with SameSite=None
+      setCookieHeaders.forEach(cookie => {
+        const fixedCookie = cookie.replace(/SameSite=Lax/gi, 'SameSite=None');
+        newResponse.headers.append('set-cookie', fixedCookie);
+        console.log("🍪 Fixed cookie:", fixedCookie);
+      });
+      
+      return newResponse;
+    }
+    
+    return response;
+  } catch (error) {
+    console.error("❌ Auth handler error:", {
+      // @ts-ignore
+      message: error.message,
+      // @ts-ignore
+      stack: error.stack,
+      // @ts-ignore
+      name: error.name
+    });
+    
+    return c.json(
+      { 
+        error: "Authentication service error", 
+        // @ts-ignore
+        details: error.message,
+        timestamp: new Date().toISOString()
+      }, 
+      500
+    );
+  }
+  }
   const db = getDb(c.env.DATABASE_URL);
   const auth = createAuth(c.env, db);
   return await auth.handler(c.req.raw);
+
 });
 app.route("/users", userRoutes);
 app.route("/sources", sourceRoutes);

@@ -16,7 +16,7 @@ export default function Nav() {
   const navigate = useNavigate();
   return (
     <div
-      className={`flex w-full items-center px-5 py-3 ${isAuthenticatedRoute ? "justify-end" : "justify-between border-b"}`}
+      className={`flex w-full items-center  py-3 ${isAuthenticatedRoute ? "justify-end" : "justify-between border-b px-5"}`}
     >
       {isAuthenticatedRoute ? (
         ""
@@ -33,7 +33,7 @@ export default function Nav() {
         ) : isAuthenticated && user ? (
           <>
             <Link to="/rooms">
-              <Button variant={"ghost"} className="cursor-pointer">
+              <Button variant={"outline"} className="cursor-pointer">
                 Rooms
               </Button>
             </Link>
