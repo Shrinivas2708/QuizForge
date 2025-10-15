@@ -138,9 +138,13 @@ export function QuizTakingScreen({ quizId }: QuizTakingScreenProps) {
 
   // Fullscreen change handler
   useEffect(() => {
-    document.addEventListener("contextmenu", function (event) {
-      event.preventDefault();
-    });
+   
+   const handleContextMenu = (e: MouseEvent) => {
+  e.preventDefault(); // ❌ blocks the browser's context menu
+  console.log("Right click detected on:", e.target);
+  console.log("Mouse position:", e.clientX, e.clientY);
+};
+
     const handleFullScreenChange = async () => {
       if (!document.fullscreenElement) {
         setIsFullScreen(false);
@@ -168,13 +172,11 @@ export function QuizTakingScreen({ quizId }: QuizTakingScreenProps) {
         setIsFullScreen(true);
       }
     };
-
+ document.addEventListener("contextmenu", handleContextMenu);
     document.addEventListener("fullscreenchange", handleFullScreenChange);
     return () => {
       document.removeEventListener("fullscreenchange", handleFullScreenChange);
-      document.removeEventListener("contextmenu", function (event) {
-        event.preventDefault();
-      });
+      document.removeEventListener("contextmenu", handleContextMenu);
     };
   }, [submissionId, participantId]);
 
@@ -222,7 +224,7 @@ export function QuizTakingScreen({ quizId }: QuizTakingScreenProps) {
     document.removeEventListener("visibilitychange", handleVisibilityChange);
   };
 }, [submissionId, participantId]);
-
+// copy paste handler
   useEffect(() => {
     if (!submissionId) return;
 
@@ -246,9 +248,10 @@ export function QuizTakingScreen({ quizId }: QuizTakingScreenProps) {
       }
     };
 
-    document.addEventListener("copy", (e) => handleCopy(e));
-    return () => document.removeEventListener("copy", (e) => handleCopy(e));
+    document.addEventListener("copy",  handleCopy);
+    return () => document.removeEventListener("copy", handleCopy);
   }, [submissionId, participantId]);
+
   useEffect(() => {
     if (!submissionId) return;
 
@@ -265,8 +268,8 @@ export function QuizTakingScreen({ quizId }: QuizTakingScreenProps) {
         .catch(() => {});
     };
 
-    document.addEventListener("keyup", (e) => handleSS(e));
-    return () => document.removeEventListener("keyup", (e) => handleSS(e));
+    document.addEventListener("keyup",  handleSS);
+    return () => document.removeEventListener("keyup",  handleSS);
   }, [submissionId, participantId]);
 
   const handleStartQuiz = async () => {
@@ -300,6 +303,7 @@ export function QuizTakingScreen({ quizId }: QuizTakingScreenProps) {
   }, [currentQuestionIndex]);
 
   const handleSubmit = useCallback(() => {
+    document.exitFullscreen?.()
     submissionMutation.mutate();
   }, [submissionMutation]);
 

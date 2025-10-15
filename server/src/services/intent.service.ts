@@ -24,11 +24,11 @@ const INTENT_CLASSIFICATION_PROMPT = PromptTemplate.fromTemplate(`You are an int
 Analyze the user's message and classify it into ONE of these intents:
 - quiz_request: User wants to generate a new quiz or regenerate existing quiz (e.g., "make a quiz", "generate questions", "create a new quiz", "harder questions")
 - quiz_start: User is ready to take/start the quiz (e.g., "start quiz", "let's begin", "take the test")
-- content_question: User is asking about the uploaded document's content (e.g., "what does chapter 3 say about...", "explain this concept")
+- content_question: User is asking a question related to the uploaded document's content. This includes summaries, definitions, or general explanations about the topic. (e.g., "what does chapter 3 say about...", "explain this concept", "tell me more about quantum physics", "summarize the key points")
 - new_document: User wants to upload a different document (e.g., "new file", "different document", "upload another")
 - platform_question: User needs help with the platform (e.g., "how do I...", "what can you do")
 - greeting: Simple greeting or small talk (e.g., "hello", "how are you")
-- out_of_scope: Unrelated to platform or documents (e.g., "what's the weather", "tell me a joke")
+- out_of_scope: Unrelated to the platform or the document's content (e.g., "what's the weather", "tell me a joke")
 
 User message: "{message}"
 
