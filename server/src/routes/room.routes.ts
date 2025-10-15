@@ -160,7 +160,6 @@ roomRoutes.get("/:roomId/results", async (c) => {
     return c.json({ error: "Unauthorized" }, 401);
   }
 
-  // Verify room exists and user is owner
   const room = await db.query.roomsTable.findFirst({
     where: eq(roomsTable.id, roomId),
     with: {
@@ -172,7 +171,6 @@ roomRoutes.get("/:roomId/results", async (c) => {
     return c.json({ error: "Room not found or you are not the owner" }, 404);
   }
 
-  // Get all participant IDs for this specific room
   const roomParticipants = await db
     .select({ id: participantsTable.id })
     .from(participantsTable)
@@ -180,12 +178,10 @@ roomRoutes.get("/:roomId/results", async (c) => {
 
   const participantIds = roomParticipants.map(p => p.id);
 
-  // If no participants have joined, return empty array
   if (participantIds.length === 0) {
     return c.json([]);
   }
 
-  // Get submissions only from participants in this room
   const submissions = await db.query.submissionsTable.findMany({
     where: and(
       eq(submissionsTable.quizId, room.quizId),
@@ -223,7 +219,6 @@ roomRoutes.get("/:roomId/analytics", async (c) => {
     return c.json({ error: "Unauthorized" }, 401);
   }
 
-  // Verify room exists and user is owner
   const room = await db.query.roomsTable.findFirst({
     where: eq(roomsTable.id, roomId),
     with: {
@@ -235,7 +230,6 @@ roomRoutes.get("/:roomId/analytics", async (c) => {
     return c.json({ error: "Room not found or you are not the owner" }, 404);
   }
 
-  // Get all participant IDs for this specific room
   const roomParticipants = await db
     .select({ id: participantsTable.id })
     .from(participantsTable)
@@ -243,7 +237,6 @@ roomRoutes.get("/:roomId/analytics", async (c) => {
 
   const participantIds = roomParticipants.map(p => p.id);
 
-  // If no participants have joined, return empty analytics
   if (participantIds.length === 0) {
     return c.json({
       room,
@@ -253,7 +246,6 @@ roomRoutes.get("/:roomId/analytics", async (c) => {
     });
   }
 
-  // Get submissions only from participants in this room
   const submissions = await db.query.submissionsTable.findMany({
     where: and(
       eq(submissionsTable.quizId, room.quizId),
@@ -324,7 +316,6 @@ roomRoutes.post("/:shareableCode/start", async (c) => {
     return c.json({ error: "Invalid participant for this room" }, 403);
   }
 
-  // Check if participant was previously disqualified in THIS room
   const priorDisqualifiedSubmission = await db
     .select({ id: submissionsTable.id })
     .from(submissionsTable)
@@ -341,7 +332,6 @@ roomRoutes.post("/:shareableCode/start", async (c) => {
     }, 403);
   }
 
-  // Get existing submissions for this participant
   const existingSubmissions = await db
     .select()
     .from(submissionsTable)
@@ -374,5 +364,25 @@ roomRoutes.post("/:shareableCode/start", async (c) => {
 
   return c.json({ submission, questions: questionsForParticipant }, 201);
 });
-
+// DELETE /api/rooms/delete - delete a quiz room
+roomRoutes.delete("/delete",async (c)=>{
+  const db = getDb(c.env.DATABASE_URL);
+  const auth = createAuth(c.env, db);
+  const session = await auth.api.getSession({ headers: c.req.raw.headers });
+  if (!session?.user?.id) {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
+  const { roomId } = await c.req.json();
+  const room = await db.query.roomsTable.findFirst({
+    where: eq(roomsTable.id, roomId),
+    with: {
+      quiz: true
+    }
+  });
+  if (!room || room.quiz.ownerId !== session.user.id) {
+    return c.json({ error: "Room not found or you are not the owner" }, 404);
+  }
+  await db.delete(roomsTable).where(eq(roomsTable.id, roomId));
+  return c.json({ message: "Room deleted successfully" });
+})
 export default roomRoutes

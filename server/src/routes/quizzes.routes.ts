@@ -9,7 +9,7 @@ import { generateQuizFromContent } from "../services/langchain.service";
 const quizRoutes = new Hono<AppEnv>();
 
 // POST /api/quizzes - Generate a new quiz
-// routes/quiz.routes.ts
+
 quizRoutes.post("/", async (c) => {
     const db = getDb(c.env.DATABASE_URL);
     const auth = createAuth(c.env, db);
@@ -56,7 +56,6 @@ quizRoutes.post("/", async (c) => {
         await db.insert(questionsTable).values(questionsToInsert);
     }
 
-    // ADD: Create a message showing quiz is ready
     if (sessionId) {
         await db.insert(chatMessagesTable).values({
             sessionId,
@@ -137,7 +136,6 @@ quizRoutes.get("/:quizId/take", async (c) => {
 
     const questions = await db.select().from(questionsTable).where(eq(questionsTable.quizId, quizId));
 
-    // Omit the correct answer from the questions
     const questionsForQuiz = questions.map(({ data, ...question }) => ({
         ...question,
         data: {
@@ -160,7 +158,6 @@ quizRoutes.get("/:quizId/my-attempts", async (c) => {
 
       const { quizId } = c.req.param();
       
-      // Find all submissions by joining through participants to find the user
       const attempts = await db
           .select({
               id: submissionsTable.id,
@@ -176,7 +173,6 @@ quizRoutes.get("/:quizId/my-attempts", async (c) => {
           .where(
             and(
               eq(submissionsTable.quizId, quizId),
-              // This is how you query a value within a JSONB column
               sql`${participantsTable.details}->>'userId' = ${session.user.id}`,
               eq(submissionsTable.finished, true)
             )
@@ -196,12 +192,11 @@ quizRoutes.get("/:quizId/my-attempts/count", async (c) => {
     const session = await auth.api.getSession({ headers: c.req.raw.headers });
 
     if (!session?.user?.id) {
-      return c.json({ count: 0 }); // Not logged in, no attempts
+      return c.json({ count: 0 }); 
     }
 
     const { quizId } = c.req.param();
 
-    // Perform a query to count the submissions
     const [{ count }] = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(submissionsTable)

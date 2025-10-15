@@ -55,7 +55,6 @@ submissionRoutes.post("/start", async (c) => {
       return c.json({ error: "Quiz not found" }, 404);
     }
 
-    // Find or create a default "single-player" room for this quiz.
     let room = await db.query.roomsTable.findFirst({
       where: and(
         eq(roomsTable.quizId, quizId),
@@ -69,13 +68,12 @@ submissionRoutes.post("/start", async (c) => {
         .values({
           quizId: quizId,
           name: `${quiz.title} (Single Player)`,
-          shareableCode: nanoid(8), // Needs a unique code to satisfy the schema
+          shareableCode: nanoid(8),
         })
         .returning()
         .then((res) => res[0]);
     }
 
-    // Create participant, associated with the room's actual ID
     if (!room) {
       return c.json({ error: "Failed to create or find a room for the quiz." }, 500);
     }
@@ -182,7 +180,6 @@ submissionRoutes.post("/:submissionId/finish", async (c) => {
       return c.json({ error: "Submission already completed" }, 400);
     }
 
-    // Calculate score
     const [{ count: correctAnswersCount }] = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(answersTable)
@@ -229,7 +226,6 @@ submissionRoutes.post("/:submissionId/finish", async (c) => {
 });
 
 // GET /api/submissions/:submissionId/results - Get results
-// GET /api/submissions/:submissionId/results - Get results
 submissionRoutes.get("/:submissionId/results", async (c) => {
   try {
     const db = getDb(c.env.DATABASE_URL);
@@ -244,7 +240,7 @@ submissionRoutes.get("/:submissionId/results", async (c) => {
         { error: "Submission not found or not yet completed" },
         404
       );
-    } // 1. Fetch ALL questions for the quiz
+    } 
     const allQuestions = await db.query.questionsTable.findMany({
       where: eq(questionsTable.quizId, submission.quizId),
       columns: {
@@ -253,20 +249,18 @@ submissionRoutes.get("/:submissionId/results", async (c) => {
         feedback: true,
         data: true,
       },
-    }); // 2. Fetch the answers that were submitted
+    })
 
     const submittedAnswers = await db.query.answersTable.findMany({
       where: eq(answersTable.submissionId, submissionId),
-    }); // 3. Create a lookup map for submitted answers
-
+    }); 
     const answersMap = new Map(
       submittedAnswers.map((ans) => [ans.questionId, ans])
-    ); // 4. Combine questions with their answers
-
+    ); 
     const resultsWithUnattempted = allQuestions.map((question) => {
       const answer = answersMap.get(question.id);
       return {
-        question: question, // Contains correct answer, text, etc. // Spread the answer if it exists, otherwise provide default values
+        question: question,
         ...(answer || {
           questionId: question.id,
           givenAnswer: null,
@@ -295,19 +289,16 @@ submissionRoutes.post("/:submissionId/proctoring", async (c) => {
 
     const submission = await verifyParticipant(db, participantId, submissionId);
     if (!submission || submission.finished) {
-      // Don't process if already finished/disqualified
       return c.json(
         { error: "Submission not found or already completed" },
         404
       );
     }
 
-    // 1. Insert the new proctoring event
     await db
       .insert(proctoringEventsTable)
       .values({ submissionId, eventType, details });
 
-    // 2. Count the total events for this submission
     const [{ count }] = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(proctoringEventsTable)
@@ -318,13 +309,10 @@ submissionRoutes.post("/:submissionId/proctoring", async (c) => {
       where: eq(quizzesTable.id, submission.quizId),
       columns: { proctoringSettings: true },
     });
-    const eventLimit = quiz?.proctoringSettings?.eventLimit || 5; // Default to 5
-
-    // 4. Check if the limit has been exceeded
+    const eventLimit = quiz?.proctoringSettings?.eventLimit || 5;
     if (count >= eventLimit) {
       const reason = `Exceeded proctoring event limit of ${eventLimit}.`;
 
-      // Disqualify the submission
       await db
         .update(submissionsTable)
         .set({
@@ -336,7 +324,6 @@ submissionRoutes.post("/:submissionId/proctoring", async (c) => {
         })
         .where(eq(submissionsTable.id, submissionId));
 
-      // 5. Return a disqualification status to the frontend
       return c.json({ disqualified: true, reason });
     }
 

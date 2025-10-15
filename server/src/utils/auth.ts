@@ -75,10 +75,10 @@ export const createAuth = (env: EnvBindings, db: DbInstance) => {
       "http://localhost:5173"
     ],
     cookie: {
-      domain: env.IS_PROD ? ".shriii.xyz" : undefined, // ✅ Don't set domain in dev
-      secure: env.IS_PROD, // ✅ Only secure in prod
+      domain: env.IS_PROD ? ".shriii.xyz" : undefined, 
+      secure: env.IS_PROD, 
       httpOnly: true,
-      sameSite: env.IS_PROD ? "none" : "lax", // ✅ Use 'lax' in development
+      sameSite: env.IS_PROD ? "none" : "lax", 
     },
   });
 };

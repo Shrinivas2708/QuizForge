@@ -111,7 +111,6 @@ export const getRAGChatResponse = async (
     const pineconeIndex = getPineconeIndex();
     const vectorStore = await PineconeStore.fromExistingIndex(embeddings, { pineconeIndex });
 
-    // MODIFIED: The retriever now filters for any of the source IDs provided
     const retriever = vectorStore.asRetriever({
         k: 6,
         filter: { 
@@ -120,7 +119,6 @@ export const getRAGChatResponse = async (
         }
     });
     
-    // This prompt helps rephrase a follow-up question to be standalone
     const CONDENSE_QUESTION_PROMPT = PromptTemplate.fromTemplate(`Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question.
 
     Chat History:
@@ -139,7 +137,6 @@ export const getRAGChatResponse = async (
     Answer:`);
     const conversationalRetrievalChain = RunnableSequence.from([
         {
-            // This step gets the standalone question
             standalone_question: RunnableSequence.from([
                 {
                     question: (input) => input.question,
@@ -149,13 +146,11 @@ export const getRAGChatResponse = async (
                 model,
                 new StringOutputParser(),
             ]),
-            // The original question and chat history are passed through
             original_input: (input) => input,
         },
         {
-            // The standalone question is used to retrieve context
             context: ({ standalone_question }) => retriever.pipe(formatDocumentsAsString).invoke(standalone_question),
-            // The original question is what the final LLM will answer
+            
             question: ({ original_input }) => original_input.question,
         },
         ANSWER_PROMPT,

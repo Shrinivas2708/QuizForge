@@ -7,17 +7,17 @@ import type { AppEnv } from "../types";
 const getIntentModel = (env: AppEnv["Bindings"]) => new ChatGoogleGenerativeAI({
   apiKey: env.GEMINI_API_KEY,
   model: "gemini-2.0-flash-exp",
-  temperature: 0.1, // Low temperature for consistent classification
+  temperature: 0.1, 
 });
 
 export type UserIntent = 
-  | 'quiz_request'        // User wants to generate/regenerate a quiz
-  | 'quiz_start'          // User wants to start taking the quiz
-  | 'content_question'    // Question about the document content
-  | 'new_document'        // User wants to upload a new document
-  | 'platform_question'   // Question about how to use the platform
-  | 'out_of_scope'        // Unrelated to the platform
-  | 'greeting';           // Simple greeting/chitchat
+  | 'quiz_request'       
+  | 'quiz_start'          
+  | 'content_question'    
+  | 'new_document'       
+  | 'platform_question'   
+  | 'out_of_scope'        
+  | 'greeting';           
 
 const INTENT_CLASSIFICATION_PROMPT = PromptTemplate.fromTemplate(`You are an intent classifier for a quiz generation platform. Users upload documents and can generate quizzes, ask questions about content, or get help.
 

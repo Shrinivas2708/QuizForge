@@ -13,6 +13,5 @@ const getPineconeClient = () => {
 
 export const getPineconeIndex = () => {
   const client = getPineconeClient();
-  // Ensure you have a Pinecone index named 'quizforge'
   return client.Index('quizforge');
 };
