@@ -72,7 +72,8 @@ export const createAuth = (env: EnvBindings, db: DbInstance) => {
       "http://127.0.0.1:3000",
       "http://localhost:3000",
       "https://quizforge.shriii.xyz",
-      "http://localhost:5173"
+      "http://localhost:5173",
+      "https://server.ssherikar2005.workers.dev"
     ],
     cookie: {
       domain: env.IS_PROD ? ".shriii.xyz" : undefined, 
