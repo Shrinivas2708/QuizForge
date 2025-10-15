@@ -1,92 +1,169 @@
 # QuizForge 🧠✨
 
-QuizForge is an intelligent, AI-driven platform that transforms any syllabus into a comprehensive and interactive quiz. Designed for students, educators, and lifelong learners, QuizForge makes studying more efficient, engaging, and fair.
+AI-powered platform that turns your content into rich, interactive quizzes with analytics, anti-cheat, and a chat-driven study companion.
 
-## ⭐ Key Features
+## ⭐ Features
 
-* **📄 Syllabus to Quiz in Seconds**: Upload your syllabus in PDF or DOC format, and let our AI generate a variety of questions based on the key topics.
-* **📚 Multiple Quiz Formats**: Engage with the material in different ways with Multiple Choice, True/False, and Short Answer questions.
-* **🤖 AI-Powered Chat**: Have a conversation with your syllabus! Ask questions and get instant, context-aware answers from our integrated AI chat.
-* **⚙️ Fully Customizable**: Tailor your quizzes by choosing the topics, difficulty level, number of questions, and time limits to fit your study needs.
-* **🔒 Anti-Cheat System**: Ensure a fair and focused learning environment with features like fullscreen mode, tab-switching warnings, and screenshot prevention.
-* **📊 Detailed Analytics**: Receive immediate feedback with a score breakdown, correct/incorrect answers, and AI-generated explanations to help you learn from your mistakes.
+- **Syllabus → Quiz in seconds**: Generate Multiple Choice, True/False, and Short Answer questions.
+- **AI chat assistant**: Context-aware Q&A on your materials.
+- **Configurable quizzes**: Topics, difficulty, counts, and time limits.
+- **Anti-cheat**: Fullscreen enforcement, tab-switch warnings, screenshot prevention.
+- **Analytics**: Instant scoring, answer breakdowns, and AI explanations.
 
-## 🛠️ Tech Stack
+## 🧱 Monorepo structure
 
-QuizForge is built with a modern and robust technology stack:
+```
+.
+├─ client/   # Primary web app (React + Vite + TanStack Router)
+├─ room/     # Shareable/room quiz taker (React + Vite)
+└─ server/   # API (Hono on Cloudflare Workers + Drizzle ORM)
+```
 
-* **Frontend**: **React** with **Vite** for a fast and responsive user experience, with routing managed by **TanStack Router**.
-* **Backend**: **Hono** on **Cloudflare Workers** for a fast and scalable serverless API.
-* **Artificial Intelligence**: **OpenAI** for cutting-edge question generation and chat capabilities.
-* **Database**: **PostgreSQL** with **Drizzle ORM** for reliable and type-safe data storage, connected via `@neondatabase/serverless`.
-* **Authentication**: **better-auth** for handling user authentication with support for both email/password and social providers like Google.
+## 🛠️ Tech stack
 
-## 🚀 Getting Started
+- **Frontend**: React 19, Vite, TanStack Router, TailwindCSS, Radix UI
+- **Backend**: Hono on Cloudflare Workers, TypeScript
+- **AI**: LangChain, OpenAI/Google GenAI integrations
+- **DB**: PostgreSQL + Drizzle ORM (Neon or Postgres)
+- **Auth**: better-auth
 
-Follow these instructions to get a local copy of QuizForge up and running.
+## ✅ Prerequisites
 
-### Prerequisites
+- Node.js ≥ 18
+- pnpm (repo uses `packageManager: pnpm`)
+- Optional: Docker (for local Postgres via `docker-compose.yml`)
 
-* Node.js (v18 or higher)
-* pnpm package manager
+## 🚀 Quickstart
 
-### Installation & Setup
+1. Install dependencies at the repo root:
 
-1.  **Clone the Repository**
-    ```bash
-    git clone [https://github.com/shrinivas2708/quizforge.git](https://github.com/shrinivas2708/quizforge.git)
-    cd quizforge
-    ```
+   ```bash
+   pnpm install
+   ```
 
-2.  **Install Dependencies**
-    ```bash
-    pnpm install
-    ```
+2. Configure environment for `server/` (Cloudflare Worker):
+   Create `server/.env` (values shown are examples; adjust for your setup):
 
-3.  **Environment Variables**
+   ```env
+   DATABASE_URL="postgres://test:test_123@localhost:5432/quizforge-db" # or Neon
+   OPENAI_API_KEY="your_openai_api_key"
+   BETTER_AUTH_SECRET="dev_secret_change_me"
+   BETTER_AUTH_URL="http://localhost:8787"
+   GOOGLE_CLIENT_ID="your_google_client_id"
+   GOOGLE_CLIENT_SECRET="your_google_client_secret"
+   FRONTEND_URL="http://localhost:3000"
+   ```
 
-    Create a `.env` file in the `server` directory. You can use the `server/.env.example` as a template.
+3. (Optional) Start local Postgres with Docker:
 
-    ```env
-    DATABASE_URL="your_postgresql_connection_string"
-    OPENAI_API_KEY="your_openai_api_key"
-    BETTER_AUTH_SECRET="your_better_auth_secret"
-    BETTER_AUTH_URL="http://localhost:8787"
-    GOOGLE_CLIENT_ID="your_google_client_id"
-    GOOGLE_CLIENT_SECRET="your_google_client_secret"
-    FRONTEND_URL="http://localhost:5173"
-    ```
+   ```bash
+   docker compose up -d
+   ```
 
-### Running the Application
+4. Start apps (use separate terminals):
 
-This is a monorepo with separate client and server packages.
+   - Client (web app):
 
-* **To start the React client:**
-    ```bash
-    pnpm --filter client dev
-    ```
-    The client will be available at `http://localhost:5173`.
+     ```bash
+     pnpm --filter client dev
+     ```
 
-* **To start the Node.js server:**
-    ```bash
-    pnpm --filter server dev
-    ```
-    The server will be available at `http://localhost:8787`.
+     Runs on http://localhost:3000
 
-## 🤝 How to Contribute
+   - Room (shareable taker):
 
-We welcome contributions to make QuizForge even better!
+     ```bash
+     pnpm --filter room dev
+     ```
 
-1.  Fork the Project
-2.  Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3.  Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4.  Push to the Branch (`git push origin feature/AmazingFeature`)
-5.  Open a Pull Request
+     Runs on http://localhost:5173
 
-## 🚀 Deployment
+   - Server (Cloudflare Worker):
+     ```bash
+     pnpm --filter server dev
+     ```
+     Worker on http://localhost:8787
 
-This project is configured for continuous integration and deployment using **GitHub Actions**. The CI/CD pipeline is defined in `.github/workflows/ci.yml` and automates the following processes:
+## 📦 Useful scripts
 
-* **Build and Test**: On every push to the `main` branch, the pipeline builds and tests both the client and server applications.
-* **Client Deployment**: Upon a successful build, the frontend is deployed to **Vercel**.
-* **Server Deployment**: The backend server is deployed to **Cloudflare Workers** using Wrangler.
+From package roots:
+
+- `client/`
+
+  - `dev`: Vite dev server on port 3000
+  - `build`: `vite build && tsc`
+  - `serve`: preview built app
+  - `test`: unit tests via Vitest
+  - `lint`, `format`, `check`: formatting and linting helpers
+
+- `room/`
+
+  - `dev`: Vite dev server (default port 5173)
+  - `build`: `vite build && tsc`
+  - `serve`: preview built app
+  - `test`: unit tests via Vitest
+
+- `server/`
+  - `dev`: `wrangler dev`
+  - `deploy`: `wrangler deploy --minify`
+  - `cf-typegen`: generate CF Worker types
+  - `db:generate | db:migrate | db:push`: Drizzle migrations
+
+At the repo root:
+
+- `pnpm --filter client dev`
+- `pnpm --filter room dev`
+- `pnpm --filter server dev`
+
+Note: The existing root script `dev` uses multiple `--filter` flags; prefer running each service in its own terminal for clarity.
+
+## 🗄️ Database
+
+Use Neon for serverless Postgres in production, or local Postgres for development.
+
+- Local via Docker (provided `docker-compose.yml`):
+  - DB: `quizforge-db`
+  - User: `test`
+  - Password: `test_123`
+  - Port: `5432`
+
+Update `DATABASE_URL` accordingly, e.g.:
+
+```
+postgres://test:test_123@localhost:5432/quizforge-db
+```
+
+## 🧪 Testing & quality
+
+- `client`: `pnpm --filter client test`
+- `room`: `pnpm --filter room test`
+- `server`: `pnpm --filter server test`
+
+Linting/formatting in `client`:
+
+```
+pnpm --filter client lint
+pnpm --filter client check
+```
+
+## 🌐 Deployment
+
+- **client** and **room**: deploy to Vercel (see `client/vercel.json` and `room/vercel.json`)
+- **server**: Cloudflare Workers via Wrangler
+  ```bash
+  pnpm --filter server deploy
+  ```
+
+## 🤝 Contributing
+
+1. Fork and create a feature branch
+2. Commit with clear messages
+3. Open a Pull Request describing the change and test coverage
+
+## 🔒 Security
+
+Never commit secrets. Use environment variables or a secrets manager. Rotate keys used in development.
+
+## 📄 License
+
+ISC License. See the license field in `package.json`.

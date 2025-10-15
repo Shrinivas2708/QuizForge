@@ -115,64 +115,90 @@ export function RoomQuizTaker({
   }, [submissionId]);
 
   // Proctoring effects (fullscreen, visibility, copy/paste)
-  useEffect(() => {
-    if (!submissionId) return;
+  // Proctoring effects (fullscreen, visibility, copy/paste, right-click, PrintScreen)
+useEffect(() => {
+  if (!submissionId) return;
 
-    const proctoringEvent = async (eventType: string) => {
-      try {
-        const response = await apiClient.post(
-          `/submissions/${submissionId}/proctoring`,
-          {
-            eventType,
-            participantId,
-            details: { timestamp: new Date().toISOString() },
-          }
-        );
-        if (response.data.disqualified) {
-          toast.error(`Disqualified: ${response.data.reason}`);
-          finishSubmissionMutation.mutate();
+  const proctoringEvent = async (eventType: string) => {
+    try {
+      const response = await apiClient.post(
+        `/submissions/${submissionId}/proctoring`,
+        {
+          eventType,
+          participantId,
+          details: { timestamp: new Date().toISOString() },
         }
-      } catch (error) {
-        // Silently fail or log to console
+      );
+
+      if (response.data.disqualified) {
+        toast.error(`Disqualified: ${response.data.reason}`);
+        finishSubmissionMutation.mutate();
       }
-    };
+    } catch (error) {
+      console.error("Proctoring error:", error);
+    }
+  };
 
-    const handleFullScreenChange = () => {
-      if (!document.fullscreenElement) {
-        setIsFullScreen(false);
-        toast.warning("You have exited fullscreen mode.");
-        proctoringEvent("fullscreen_exit");
-      } else {
-        setIsFullScreen(true);
-      }
-    };
+  // Fullscreen exit
+  const handleFullScreenChange = () => {
+    if (!document.fullscreenElement) {
+      toast.warning("You have exited fullscreen mode!");
+      proctoringEvent("fullscreen_exit");
+    }
+  };
 
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        toast.warning("Tab switch detected.");
-        proctoringEvent("tab_switch");
-      }
-    };
+  // Tab/window switch
+  const handleTabSwitch = () => {
+    toast.warning("Tab/window switch detected!");
+    proctoringEvent("tab_switch");
+  };
+  const handleVisibilityChange = () => {
+    if (document.hidden) handleTabSwitch();
+  };
 
-    const handleCopy = (e: ClipboardEvent) => {
-        e.preventDefault();
-        toast.warning("Copying is disabled during the quiz.");
-        proctoringEvent("copy_paste");
-    };
-    
-    document.addEventListener("fullscreenchange", handleFullScreenChange);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    document.addEventListener("copy", handleCopy);
-    document.addEventListener("contextmenu", (e) => e.preventDefault());
+  // Copy/paste
+  const handleCopy = (e: ClipboardEvent) => {
+    e.preventDefault();
+    toast.warning("Copying is disabled during the quiz.");
+    proctoringEvent("copy_paste");
+  };
 
+  // Right-click
+  const handleContextMenu = (e: MouseEvent) => {
+    e.preventDefault();
+    toast.warning("Right-click is disabled during the quiz.");
+    proctoringEvent("right_click");
+  };
 
-    return () => {
-      document.removeEventListener("fullscreenchange", handleFullScreenChange);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      document.removeEventListener("copy", handleCopy);
-      document.removeEventListener("contextmenu", (e) => e.preventDefault());
-    };
-  }, [submissionId, participantId, finishSubmissionMutation]);
+  // PrintScreen
+  const handlePrintScreen = (e: KeyboardEvent) => {
+    if (e.key === "PrintScreen") {
+      toast.error("PrintScreen detected!");
+      proctoringEvent("copy_paste");
+    }
+  };
+
+  // Add event listeners
+  document.addEventListener("fullscreenchange", handleFullScreenChange);
+  document.addEventListener("visibilitychange", handleVisibilityChange);
+  window.addEventListener("blur", handleTabSwitch);
+  document.addEventListener("copy", handleCopy);
+  document.addEventListener("contextmenu", handleContextMenu);
+  document.addEventListener("keyup", handlePrintScreen);
+
+  // Cleanup
+  return () => {
+    document.removeEventListener("fullscreenchange", handleFullScreenChange);
+    document.removeEventListener(
+      "visibilitychange",
+      handleVisibilityChange
+    );
+    window.removeEventListener("blur", handleTabSwitch);
+    document.removeEventListener("copy", handleCopy);
+    document.removeEventListener("contextmenu", handleContextMenu);
+    document.removeEventListener("keyup", handlePrintScreen);
+  };
+}, [submissionId, participantId, finishSubmissionMutation]);
 
 
   const handleStartQuiz = async () => {
