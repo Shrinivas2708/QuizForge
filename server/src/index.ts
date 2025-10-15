@@ -62,6 +62,7 @@ app.get("/auth/sso-callback", async (c) => {
 app.all("/auth/*", async (c) => {
   try {
     console.log("🔵 Auth request:", c.req.method, c.req.path);
+    console.log("🔵 Request headers:", Object.fromEntries(c.req.raw.headers.entries()));
     
     if (!c.env.DATABASE_URL) {
       throw new Error("DATABASE_URL not configured");
@@ -76,20 +77,38 @@ app.all("/auth/*", async (c) => {
     const response = await auth.handler(c.req.raw);
     console.log("✅ Auth handler response:", response.status);
     
-    return response;
-  } catch (error ) {
-    console.error("❌ Auth handler error:", {
+    // Log original cookies
+    const setCookieHeaders = response.headers.getSetCookie();
+    console.log("🍪 Original Set-Cookie headers:", setCookieHeaders);
+    
+    // WORKAROUND: Manually fix SameSite attribute
+    if (setCookieHeaders.length > 0) {
+      const newResponse = new Response(response.body, response);
       
+      // Remove old set-cookie headers
+      newResponse.headers.delete('set-cookie');
+      
+      // Add modified cookies with SameSite=None
+      setCookieHeaders.forEach(cookie => {
+        const fixedCookie = cookie.replace(/SameSite=Lax/gi, 'SameSite=None');
+        newResponse.headers.append('set-cookie', fixedCookie);
+        console.log("🍪 Fixed cookie:", fixedCookie);
+      });
+      
+      return newResponse;
+    }
+    
+    return response;
+  } catch (error) {
+    console.error("❌ Auth handler error:", {
       // @ts-ignore
-     
       message: error.message,
       // @ts-ignore
       stack: error.stack,
-       // @ts-ignore
+      // @ts-ignore
       name: error.name
     });
     
-    // Return error with proper CORS headers
     return c.json(
       { 
         error: "Authentication service error", 
@@ -100,7 +119,7 @@ app.all("/auth/*", async (c) => {
       500
     );
   }
-});
+});;
 app.get("/debug/env-check", (c) => {
   return c.json({
     hasDatabase: !!c.env.DATABASE_URL,

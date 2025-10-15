@@ -4,7 +4,7 @@ import { usersTable, accountsTable, sessionsTable } from "../db/schema";
 import { eq } from "drizzle-orm";
 import * as schema from "../db/schema";
 import { DbInstance, EnvBindings } from "../types";
-
+import { randomBytes, scryptSync } from 'crypto';
 export const createAuth = (env: EnvBindings, db: DbInstance) => {
   return betterAuth({
     database: drizzleAdapter(db, {
@@ -21,6 +21,19 @@ export const createAuth = (env: EnvBindings, db: DbInstance) => {
     secret: env.BETTER_AUTH_SECRET,
     emailAndPassword: {
       enabled: true,
+      password: {
+        hash: async (password) => {
+          const salt = randomBytes(16).toString('hex')
+          const hash = scryptSync(password, salt, 64).toString('hex')
+          return `${salt}:${hash}`
+        },
+        verify: async ({ hash, password }) => {
+          const [salt, key] = hash.split(':')
+          const keyBuffer = Buffer.from(key, 'hex')
+          const hashBuffer = scryptSync(password, salt, 64)
+          return keyBuffer.equals(hashBuffer)
+        },
+      }
     },
     socialProviders: {
       google: {
@@ -38,10 +51,7 @@ export const createAuth = (env: EnvBindings, db: DbInstance) => {
         account: Account;
         isNewUser: boolean;
       }) => {
-        console.log(
-          "signIn callback invoked. providerId:",
-          account?.providerId
-        );
+        console.log("signIn callback invoked. providerId:", account?.providerId);
         console.log("profile:", profile);
         console.log("isNewUser:", isNewUser);
 
@@ -75,11 +85,12 @@ export const createAuth = (env: EnvBindings, db: DbInstance) => {
       "http://localhost:5173",
       "https://server.ssherikar2005.workers.dev",
     ],
+    // ⚠️ THIS IS THE CRITICAL PART - MAKE SURE IT'S EXACTLY LIKE THIS:
     cookie: {
-      domain: env.IS_PROD ? ".shriii.xyz" : undefined, 
-      secure: env.IS_PROD, 
+      secure: true,
       httpOnly: true,
-      sameSite: env.IS_PROD ? "none" : "lax", 
+      sameSite: "none", // ⚠️ Must be lowercase "none", not "None"
+      path: "/",
     },
   });
 };
