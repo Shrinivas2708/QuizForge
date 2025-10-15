@@ -180,32 +180,49 @@ export function QuizTakingScreen({ quizId }: QuizTakingScreenProps) {
 
   // Tab visibility handler
   useEffect(() => {
-    if (!submissionId) return;
+  if (!submissionId) return;
 
-    const handleVisibilityChange = async () => {
-      if (document.hidden) {
-        toast.warning("Tab switch detected");
-        try {
-          const response = await apiClient
-          .post(`/submissions/${submissionId}/proctoring`, {
-            eventType: "tab_switch",
-            participantId,
-            details: { timestamp: new Date().toISOString() },
-          })
-           if (response.data.disqualified) {
-          toast.error(`Disqualified: ${response.data.reason}`);
-          submissionMutation.mutate(); // Automatically submit the quiz
+  const handleVisibilityChange = async () => {
+    if (document.hidden) {
+      await handleProctoringEvent("tab_switch");
+    }
+  };
+
+  const handleWindowBlur = async () => {
+    // Triggered when user switches tab or window
+    await handleProctoringEvent("tab_switch");
+  };
+
+  const handleProctoringEvent = async (eventType: string) => {
+    toast.warning("Tab/window switch detected!");
+    try {
+      const response = await apiClient.post(
+        `/submissions/${submissionId}/proctoring`,
+        {
+          eventType,
+          participantId,
+          details: { timestamp: new Date().toISOString() },
         }
-        } catch (error) {
-          
-        }
+      );
+
+      if (response.data.disqualified) {
+        toast.error(`Disqualified: ${response.data.reason}`);
+        submissionMutation.mutate(); // Auto-submit
       }
-    };
+    } catch (error) {
+      console.error("Proctoring error:", error);
+    }
+  };
 
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () =>
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, [submissionId, participantId]);
+  window.addEventListener("blur", handleWindowBlur);
+  document.addEventListener("visibilitychange", handleVisibilityChange);
+
+  return () => {
+    window.removeEventListener("blur", handleWindowBlur);
+    document.removeEventListener("visibilitychange", handleVisibilityChange);
+  };
+}, [submissionId, participantId]);
+
   useEffect(() => {
     if (!submissionId) return;
 

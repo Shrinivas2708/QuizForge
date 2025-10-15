@@ -266,6 +266,7 @@ roomRoutes.get("/:roomId/analytics", async (c) => {
       startedAt: true,
       completedAt: true,
       disqualified: true,
+      durationSeconds: true,
     },
   });
 

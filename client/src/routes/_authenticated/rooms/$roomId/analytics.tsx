@@ -28,6 +28,7 @@ import {
   Target,
   Clock,
 } from "lucide-react";
+import { ParticipantDetailsDialog } from "@/components/ParticipantDetailsDialog";
 
 export const Route = createFileRoute("/_authenticated/rooms/$roomId/analytics")({
   component: RoomAnalyticsComponent,
@@ -39,6 +40,7 @@ type Submission = {
   startedAt: string;
   completedAt: string | null;
   disqualified: boolean;
+  durationSeconds: number | null;
   participant: {
     id: string;
     details: Record<string, string>;
@@ -62,6 +64,8 @@ type Analytics = {
   submissions: Submission[];
 };
 
+
+
 function RoomAnalyticsComponent() {
   const { roomId } = Route.useParams();
 
@@ -73,7 +77,6 @@ function RoomAnalyticsComponent() {
     },
   });
 
-  // Get detailed results for each submission
   const { data: detailedResults } = useQuery({
     queryKey: ["roomDetailedResults", roomId],
     queryFn: async () => {
@@ -85,6 +88,8 @@ function RoomAnalyticsComponent() {
             const response = await apiClient.get(
               `/submissions/${submission.id}/results`
             );
+            console.log(response.data);
+            
             return response.data;
           } catch {
             return null;
@@ -114,7 +119,6 @@ function RoomAnalyticsComponent() {
     );
   }
 
-  // Calculate statistics
   const completedSubmissions = analytics.submissions.filter(
     (s) => s.completedAt && !s.disqualified
   );
@@ -123,15 +127,10 @@ function RoomAnalyticsComponent() {
   ).length;
   const averageCompletionTime = completedSubmissions.length
     ? completedSubmissions.reduce((acc, s) => {
-        const duration =
-          (new Date(s.completedAt!).getTime() -
-            new Date(s.startedAt).getTime()) /
-          1000;
-        return acc + duration;
+        return acc + (s.durationSeconds || 0);
       }, 0) / completedSubmissions.length
     : 0;
 
-  // Score distribution
   const scoreRanges = {
     "90-100%": 0,
     "80-89%": 0,
@@ -149,7 +148,6 @@ function RoomAnalyticsComponent() {
     else scoreRanges["Below 60%"]++;
   });
 
-  // Question-level analytics
   const questionStats = detailedResults?.[0]?.answers?.map((answer: any, idx: number) => {
     const questionId = answer.question.id;
     const questionText = answer.question.questionText;
@@ -185,8 +183,7 @@ function RoomAnalyticsComponent() {
   });
 
   return (
-    <div className="space-y-6 p-4 md:p-8">
-      {/* Header */}
+    <div className="space-y-6 p-4 md:p-8 ">
       <div>
         <h1 className="text-3xl font-bold">{analytics.room.name}</h1>
         <p className="text-muted-foreground">
@@ -194,7 +191,6 @@ function RoomAnalyticsComponent() {
         </p>
       </div>
 
-      {/* Key Metrics */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -256,7 +252,6 @@ function RoomAnalyticsComponent() {
         </Card>
       </div>
 
-      {/* Tabs for different views */}
       <Tabs defaultValue="overview" className="space-y-4">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -264,9 +259,7 @@ function RoomAnalyticsComponent() {
           <TabsTrigger value="questions">Question Analysis</TabsTrigger>
         </TabsList>
 
-        {/* Overview Tab */}
         <TabsContent value="overview" className="space-y-4">
-          {/* Score Distribution */}
           <Card>
             <CardHeader>
               <CardTitle>Score Distribution</CardTitle>
@@ -296,7 +289,6 @@ function RoomAnalyticsComponent() {
           </Card>
         </TabsContent>
 
-        {/* Participants Tab */}
         <TabsContent value="participants">
           <Card>
             <CardHeader>
@@ -312,8 +304,9 @@ function RoomAnalyticsComponent() {
                     <TableHead>Name</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Score</TableHead>
+                    <TableHead>Duration</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Completed At</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -335,6 +328,11 @@ function RoomAnalyticsComponent() {
                         )}
                       </TableCell>
                       <TableCell>
+                        {submission.durationSeconds
+                          ? `${Math.floor(submission.durationSeconds / 60)}m ${submission.durationSeconds % 60}s`
+                          : "N/A"}
+                      </TableCell>
+                      <TableCell>
                         {submission.disqualified ? (
                           <Badge variant="destructive">Disqualified</Badge>
                         ) : submission.completedAt ? (
@@ -343,10 +341,10 @@ function RoomAnalyticsComponent() {
                           <Badge variant="secondary">In Progress</Badge>
                         )}
                       </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {submission.completedAt
-                          ? new Date(submission.completedAt).toLocaleString()
-                          : "Not completed"}
+                      <TableCell>
+                        {submission.completedAt && (
+                          <ParticipantDetailsDialog submission={submission} />
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -356,7 +354,6 @@ function RoomAnalyticsComponent() {
           </Card>
         </TabsContent>
 
-        {/* Question Analysis Tab */}
         <TabsContent value="questions">
           <Card>
             <CardHeader>
@@ -446,4 +443,4 @@ function RoomAnalyticsComponent() {
       </Tabs>
     </div>
   );
-}
+}     

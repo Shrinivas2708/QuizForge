@@ -333,4 +333,16 @@ submissionRoutes.post("/:submissionId/proctoring", async (c) => {
     return c.json({ error: "Failed to log proctoring event" }, 500);
   }
 });
+// GET /api/submissions/:submissionId/proctoring-events - Get proctoring events
+submissionRoutes.get("/:submissionId/proctoring-events", async (c) => {
+  const db = getDb(c.env.DATABASE_URL);
+  const { submissionId } = c.req.param();
+  
+  const events = await db.query.proctoringEventsTable.findMany({
+    where: eq(proctoringEventsTable.submissionId, submissionId),
+    orderBy: (events, { asc }) => [asc(events.timestamp)],
+  });
+  
+  return c.json(events);
+});
 export default submissionRoutes;
