@@ -60,9 +60,58 @@ app.get("/auth/sso-callback", async (c) => {
   return c.redirect(redirectUrl.toString());
 });
 app.all("/auth/*", async (c) => {
-  const db = getDb(c.env.DATABASE_URL);
-  const auth = createAuth(c.env, db);
-  return await auth.handler(c.req.raw);
+  try {
+    console.log("🔵 Auth request:", c.req.method, c.req.path);
+    
+    if (!c.env.DATABASE_URL) {
+      throw new Error("DATABASE_URL not configured");
+    }
+    
+    const db = getDb(c.env.DATABASE_URL);
+    console.log("✅ DB connection created");
+    
+    const auth = createAuth(c.env, db);
+    console.log("✅ Auth instance created");
+    
+    const response = await auth.handler(c.req.raw);
+    console.log("✅ Auth handler response:", response.status);
+    
+    return response;
+  } catch (error ) {
+    console.error("❌ Auth handler error:", {
+      
+      // @ts-ignore
+     
+      message: error.message,
+      // @ts-ignore
+      stack: error.stack,
+       // @ts-ignore
+      name: error.name
+    });
+    
+    // Return error with proper CORS headers
+    return c.json(
+      { 
+        error: "Authentication service error", 
+        // @ts-ignore
+        details: error.message,
+        timestamp: new Date().toISOString()
+      }, 
+      500
+    );
+  }
+});
+app.get("/debug/env-check", (c) => {
+  return c.json({
+    hasDatabase: !!c.env.DATABASE_URL,
+    hasAuthSecret: !!c.env.BETTER_AUTH_SECRET,
+    hasAuthUrl: !!c.env.BETTER_AUTH_URL,
+    hasFrontendUrl: !!c.env.FRONTEND_URL,
+    hasGoogleId: !!c.env.GOOGLE_CLIENT_ID,
+    hasGoogleSecret: !!c.env.GOOGLE_CLIENT_SECRET,
+    isProd: c.env.IS_PROD,
+    // Don't log actual values, just check if they exist
+  });
 });
 app.route("/users", userRoutes);
 app.route("/sources", sourceRoutes);

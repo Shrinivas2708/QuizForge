@@ -7,3 +7,11 @@ binding = "AI"
 ip = "localhost"
 port = 8787
 [vars]
+
+# Development environment (default)
+[env.dev]
+vars = { IS_PROD = "false" }
+
+# Production environment
+[env.production]
+vars = { IS_PROD = "true" }
