@@ -36,6 +36,7 @@ export function RoomQuizTaker({
   const navigate = useNavigate();
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  // @ts-ignore
   const [isFullScreen, setIsFullScreen] = useState(
     document.fullscreenElement != null
   );
