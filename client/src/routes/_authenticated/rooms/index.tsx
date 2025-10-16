@@ -1,3 +1,4 @@
+import { DeleteRoomButton } from "@/components/DeleteRoomButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,10 +11,9 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import apiClient from "@/lib/axios";
 import { ROOMS_URL } from "@/lib/exports";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import {  Link as LinkIcon, Trash } from "lucide-react";
-import { toast } from "sonner";
+import {  Link as LinkIcon } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/rooms/")({
   component: RouteComponent,
@@ -27,7 +27,6 @@ interface RoomType {
   timeLimit: number;
 }
 function RouteComponent() {
-  const client  = useQueryClient()
   const { data: Rooms, isLoading } = useQuery<RoomType[]>({
     queryKey: ["roomHistory"],
     queryFn: async () => {
@@ -48,23 +47,7 @@ function RouteComponent() {
     const expiryTime = createdDate.getTime() + timeLimitInSeconds * 1000;
     const now = Date.now();
     return now > expiryTime; // true → expired, false → active
-  };
-  const { isPending , mutate } = useMutation({
-    mutationFn: async (id: string) => {
-      await apiClient.delete("/rooms/delete",{
-        data:{
-          roomId : id
-        }
-      })
-    },
-    onSuccess : ()=>{
-      client.invalidateQueries({ queryKey: ['roomHistory'] })
-      toast.success("Room deleted successfully.")
-    },
-    onError : () => {
-      toast.error("Error while deleteing the room.")
-    }
-  })
+  }
   return (
     <div className="p-4 md:p-8">
       <Card>
@@ -112,18 +95,17 @@ function RouteComponent() {
                     
                   </CardContent>
                   <CardFooter className="flex justify-between">
-                    <Button size={"sm"} variant={"outline"}>
-                      <Link
+                    <Link
                         to="/rooms/$roomId/analytics"
                         params={{ roomId: v.id }}
                       >
-                        Get Analytics
-                      </Link>
+                    <Button size={"sm"} variant={"outline"}>
                       
-                    </Button>
-                    <Button variant={"destructive"} onClick={ () => mutate(v.id)}>
-                      {isPending ? <Spinner /> : <Trash/>}
-                    </Button>
+                        Get Analytics
+                      
+                      
+                    </Button></Link>
+                    <DeleteRoomButton roomId={v.id} />
                   </CardFooter>
                 </Card>
               );

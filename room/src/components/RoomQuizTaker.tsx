@@ -36,7 +36,6 @@ export function RoomQuizTaker({
   const navigate = useNavigate();
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
-  // @ts-ignore
   const [isFullScreen, setIsFullScreen] = useState(
     document.fullscreenElement != null
   );
@@ -81,7 +80,7 @@ export function RoomQuizTaker({
         participantId,
       });
     },
-     onError: (error: any) => {
+    onError: (error: any) => {
       toast.error(error?.response?.data?.error || "Failed to save answer");
     },
   });
@@ -117,90 +116,89 @@ export function RoomQuizTaker({
 
   // Proctoring effects (fullscreen, visibility, copy/paste)
   // Proctoring effects (fullscreen, visibility, copy/paste, right-click, PrintScreen)
-useEffect(() => {
-  if (!submissionId) return;
+  useEffect(() => {
+    if (!submissionId) return;
 
-  const proctoringEvent = async (eventType: string) => {
-    try {
-      const response = await apiClient.post(
-        `/submissions/${submissionId}/proctoring`,
-        {
-          eventType,
-          participantId,
-          details: { timestamp: new Date().toISOString() },
+    const proctoringEvent = async (eventType: string) => {
+      try {
+        const response = await apiClient.post(
+          `/submissions/${submissionId}/proctoring`,
+          {
+            eventType,
+            participantId,
+            details: { timestamp: new Date().toISOString() },
+          }
+        );
+
+        if (response.data.disqualified) {
+          toast.error(`Disqualified: ${response.data.reason}`);
+          finishSubmissionMutation.mutate();
         }
-      );
-
-      if (response.data.disqualified) {
-        toast.error(`Disqualified: ${response.data.reason}`);
-        finishSubmissionMutation.mutate();
+      } catch (error) {
+        console.error("Proctoring error:", error);
       }
-    } catch (error) {
-      console.error("Proctoring error:", error);
-    }
-  };
+    };
 
-  // Fullscreen exit
-  const handleFullScreenChange = () => {
-    if (!document.fullscreenElement) {
-      toast.warning("You have exited fullscreen mode!");
-      proctoringEvent("fullscreen_exit");
-    }
-  };
+    // Fullscreen exit
+    const handleFullScreenChange = () => {
+      if (!document.fullscreenElement) {
+        setIsFullScreen(false);
+        toast.warning("You have exited fullscreen mode!");
+        proctoringEvent("fullscreen_exit");
+      } else {
+        setIsFullScreen(true);
+      }
+    };
 
-  // Tab/window switch
-  const handleTabSwitch = () => {
-    toast.warning("Tab/window switch detected!");
-    proctoringEvent("tab_switch");
-  };
-  const handleVisibilityChange = () => {
-    if (document.hidden) handleTabSwitch();
-  };
+    // Tab/window switch
+    const handleTabSwitch = () => {
+      toast.warning("Tab/window switch detected!");
+      proctoringEvent("tab_switch");
+    };
+    const handleVisibilityChange = () => {
+      if (document.hidden) handleTabSwitch();
+    };
 
-  // Copy/paste
-  const handleCopy = (e: ClipboardEvent) => {
-    e.preventDefault();
-    toast.warning("Copying is disabled during the quiz.");
-    proctoringEvent("copy_paste");
-  };
-
-  // Right-click
-  const handleContextMenu = (e: MouseEvent) => {
-    e.preventDefault();
-    toast.warning("Right-click is disabled during the quiz.");
-    proctoringEvent("right_click");
-  };
-
-  // PrintScreen
-  const handlePrintScreen = (e: KeyboardEvent) => {
-    if (e.key === "PrintScreen") {
-      toast.error("PrintScreen detected!");
+    // Copy/paste
+    const handleCopy = (e: ClipboardEvent) => {
+      e.preventDefault();
+      toast.warning("Copying is disabled during the quiz.");
       proctoringEvent("copy_paste");
-    }
-  };
+    };
 
-  // Add event listeners
-  document.addEventListener("fullscreenchange", handleFullScreenChange);
-  document.addEventListener("visibilitychange", handleVisibilityChange);
-  window.addEventListener("blur", handleTabSwitch);
-  document.addEventListener("copy", handleCopy);
-  document.addEventListener("contextmenu", handleContextMenu);
-  document.addEventListener("keyup", handlePrintScreen);
+    // Right-click
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+      toast.warning("Right-click is disabled during the quiz.");
+      proctoringEvent("right_click");
+    };
 
-  // Cleanup
-  return () => {
-    document.removeEventListener("fullscreenchange", handleFullScreenChange);
-    document.removeEventListener(
-      "visibilitychange",
-      handleVisibilityChange
-    );
-    window.removeEventListener("blur", handleTabSwitch);
-    document.removeEventListener("copy", handleCopy);
-    document.removeEventListener("contextmenu", handleContextMenu);
-    document.removeEventListener("keyup", handlePrintScreen);
-  };
-}, [submissionId, participantId, finishSubmissionMutation]);
+    // PrintScreen
+    const handlePrintScreen = (e: KeyboardEvent) => {
+      if (e.key === "PrintScreen") {
+        toast.error("PrintScreen detected!");
+        proctoringEvent("copy_paste");
+      }
+    };
 
+    // Add event listeners
+    document.addEventListener("fullscreenchange", handleFullScreenChange);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("blur", handleTabSwitch);
+    document.addEventListener("copy", handleCopy);
+    document.addEventListener("contextmenu", handleContextMenu);
+    document.addEventListener("keyup", handlePrintScreen);
+
+    // Cleanup
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullScreenChange);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("blur", handleTabSwitch);
+      document.removeEventListener("copy", handleCopy);
+      document.removeEventListener("contextmenu", handleContextMenu);
+      document.removeEventListener("keyup", handlePrintScreen);
+    };
+  }, [submissionId, participantId, finishSubmissionMutation]);
 
   const handleStartQuiz = async () => {
     try {
@@ -235,8 +233,8 @@ useEffect(() => {
   const handleSubmit = useCallback(() => {
     finishSubmissionMutation.mutate();
   }, [finishSubmissionMutation]);
-  
-    const formatTime = (seconds: number) => {
+
+  const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, "0")}`;
@@ -245,7 +243,6 @@ useEffect(() => {
   const getAnsweredCount = () => {
     return Object.keys(answers).length;
   };
-
 
   if (!quizData || !submissionId) {
     return (
@@ -293,11 +290,10 @@ useEffect(() => {
           </p>
         </div>
         <Button
-          onClick={() => startSubmissionMutation.mutate()}
-          disabled={startSubmissionMutation.isPending}
+          onClick={handleStartQuiz} // <--- CHANGE THIS
           size="lg"
         >
-          {startSubmissionMutation.isPending ? <Spinner /> : "Start Quiz"}
+          Re-enter Fullscreen {/* <--- CHANGE THIS */}
         </Button>
       </div>
     );
@@ -324,8 +320,9 @@ useEffect(() => {
               <div
                 className="bg-primary h-2 rounded-full transition-all"
                 style={{
-                  width: `${(getAnsweredCount() / quizData.questions.length) * 100
-                    }%`,
+                  width: `${
+                    (getAnsweredCount() / quizData.questions.length) * 100
+                  }%`,
                 }}
               />
             </div>
