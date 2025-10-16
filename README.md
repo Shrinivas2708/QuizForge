@@ -4,7 +4,7 @@ AI-powered platform that turns your content into rich, interactive quizzes with 
 
 ## ⭐ Features
 
-- **Syllabus → Quiz in seconds**: Generate Multiple Choice, True/False, and Short Answer questions.
+- **Syllabus → Quiz in seconds**: Generate Multiple Choice, True/False.
 - **AI chat assistant**: Context-aware Q&A on your materials.
 - **Configurable quizzes**: Topics, difficulty, counts, and time limits.
 - **Anti-cheat**: Fullscreen enforcement, tab-switch warnings, screenshot prevention.
