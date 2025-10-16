@@ -58,10 +58,9 @@ function RouteComponent() {
         console.error(error)
       }
     } else if (textPart) {
-      setIsChatStarted(true)
-      createTextSource.mutate({ content: textPart })
+      toast.error('We currently only support documents attach a document to get started!')
     } else {
-      toast.error('Please attach a file or enter a topic to start a chat.')
+      toast.error('Please attach a file!')
     }
   }
 
@@ -97,7 +96,7 @@ function RouteComponent() {
           <PromptInputAttachments>
             {(attachment) => <PromptInputAttachment data={attachment} />}
           </PromptInputAttachments>
-          <PromptInputTextarea placeholder="Type a topic or attach a document to start..." />
+          <PromptInputTextarea className='text-2xl' placeholder="Attach a document to start..." />
         </PromptInputBody>
         <PromptInputToolbar>
           <PromptInputTools>

@@ -214,42 +214,55 @@ chatRoutes.post("/sessions/:sessionId/message", async (c) => {
   });
   if (!chatSession) return c.json({ error: "Chat session not found" }, 404);
 
+  // Get source IDs
   const sourceLinks = await db
     .select({ sourceId: chatSessionSourcesTable.sourceId })
     .from(chatSessionSourcesTable)
     .where(eq(chatSessionSourcesTable.sessionId, sessionId));
-
   const sourceIds = sourceLinks.map((link) => link.sourceId);
 
-  const existingQuiz =
-    sourceIds.length > 0
-      ? await db
-          .select()
-          .from(quizzesTable)
-          .where(
-            and(
-              eq(quizzesTable.ownerId, session.user.id),
-              eq(quizzesTable.sourceId, sourceIds[0])
-            )
-          )
-          .then((res) => res[0])
-      : null;
+  // Get quiz and source info
+  const existingQuiz = sourceIds.length > 0
+    ? await db.select().from(quizzesTable)
+        .where(and(
+          eq(quizzesTable.ownerId, session.user.id),
+          eq(quizzesTable.sourceId, sourceIds[0])
+        ))
+        .then((res) => res[0])
+    : null;
 
-  const latestSource =
-    sourceIds.length > 0
-      ? await db
-          .select()
-          .from(sourcesTable)
-          .where(eq(sourcesTable.id, sourceIds[0]))
-          .then((res) => res[0])
-      : null;
+  const latestSource = sourceIds.length > 0
+    ? await db.select().from(sourcesTable)
+        .where(eq(sourcesTable.id, sourceIds[0]))
+        .then((res) => res[0])
+    : null;
 
-  const intent = await classifyIntent(c.env, content, {
+  // Get recent conversation context
+  const recentMessages = await db
+    .select()
+    .from(chatMessagesTable)
+    .where(eq(chatMessagesTable.sessionId, sessionId))
+    .orderBy(desc(chatMessagesTable.createdAt))
+    .limit(5);
+
+  const recentMessageTexts = recentMessages
+    .filter((msg) => msg.type === "text")
+    .map((msg) => (msg.content as { text?: string }).text || "")
+    .filter(Boolean);
+
+  // 🎯 Classify intent with improved service
+  const intentResult = await classifyIntent(c.env, content, {
     hasDocument: sourceIds.length > 0,
     hasQuiz: !!existingQuiz,
     documentReady: latestSource?.status === "ready",
+    recentMessages: recentMessageTexts,
   });
 
+  console.log(`[Intent] ${intentResult.intent} (${intentResult.confidence})${
+    intentResult.reasoning ? ` - ${intentResult.reasoning}` : ''
+  }`);
+
+  // Save user message
   await db.insert(chatMessagesTable).values({
     sessionId,
     role: "user",
@@ -260,99 +273,105 @@ chatRoutes.post("/sessions/:sessionId/message", async (c) => {
   let aiResponseContent: string;
   let aiResponseType: "text" | "quiz_config_prompt" = "text";
 
-  switch (intent) {
-    case "greeting":
-      aiResponseContent =
-        "Hello! I'm here to help you generate quizzes from your documents. Upload a document to get started, or ask me anything!";
-      break;
+  // Handle based on intent and confidence
+  if (intentResult.confidence === 'low') {
+    aiResponseContent = 
+      "I'm not quite sure what you're asking. Could you clarify? You can:\n" +
+      "- Ask me to generate a quiz\n" +
+      "- Ask questions about your document\n" +
+      "- Get help with the platform";
+  } else {
+    switch (intentResult.intent) {
+      case 'greeting':
+        aiResponseContent = 
+          "Hello! I'm here to help you generate quizzes from your documents. " +
+          "Upload a document to get started, or ask me anything!";
+        break;
 
-    case "quiz_request":
-      if (!latestSource || latestSource.status !== "ready") {
+      case 'quiz_request':
+        if (!latestSource || latestSource.status !== "ready") {
+          aiResponseContent =
+            "Please wait for your document to finish processing before generating a quiz.";
+        } else {
+          aiResponseType = "quiz_config_prompt";
+          await db.insert(chatMessagesTable).values({
+            sessionId,
+            role: "assistant",
+            type: "processing_complete",
+            content: { sourceId: latestSource.id },
+          });
+          return c.json({ success: true, intent: intentResult.intent });
+        }
+        break;
+
+      case 'quiz_start':
+        if (!existingQuiz) {
+          aiResponseContent =
+            "You haven't generated a quiz yet. Would you like me to create one?";
+        } else {
+          aiResponseContent = 
+            `Great! Your quiz "${existingQuiz.title}" is ready. Click "Start Quiz" to begin.`;
+        }
+        break;
+
+      case 'content_question':
+        if (sourceIds.length === 0) {
+          aiResponseContent =
+            "Please upload a document first so I can answer questions about it.";
+        } else {
+          const chatHistory = recentMessages
+            .filter((msg) => msg.type === "text")
+            .map((msg) => {
+              const content = msg.content as { text?: string };
+              return `${msg.role}: ${content.text || ""}`;
+            })
+            .join("\n");
+
+          aiResponseContent = await getRAGChatResponse(
+            c.env,
+            content,
+            sourceIds,
+            session.user.id,
+            chatHistory
+          );
+        }
+        break;
+
+      case 'new_document':
         aiResponseContent =
-          "Please wait for your document to finish processing before generating a quiz, or upload a new document.";
-      } else {
-        aiResponseType = "quiz_config_prompt";
-        aiResponseContent = "";
-        await db.insert(chatMessagesTable).values({
-          sessionId,
-          role: "assistant",
-          type: "processing_complete",
-          content: { sourceId: latestSource.id },
-        });
+          "To upload a new document, use the upload button in the sidebar. " +
+          "Once uploaded, I'll process it and we can generate a quiz from it.";
+        break;
 
-        return c.json({ success: true, intent });
-      }
-      break;
+      case 'platform_question':
+        aiResponseContent = 
+          "I can help you with:\n" +
+          "• Upload PDF documents\n" +
+          "• Generate customizable quizzes\n" +
+          "• Ask questions about your content\n" +
+          "• Take and share quizzes\n\n" +
+          "What would you like to do?";
+        break;
 
-    case "quiz_start":
-      if (!existingQuiz) {
+      case 'out_of_scope':
         aiResponseContent =
-          "You haven't generated a quiz yet. Would you like me to create one for you?";
-      } else {
-        aiResponseContent = `Great! Your quiz "${existingQuiz.title}" is ready. Click the "Start Quiz" button above to begin.`;
-      }
-      break;
+          "I'm specialized in quiz generation from documents. " +
+          "I can't help with that, but I'd be happy to help you create a quiz or " +
+          "answer questions about your uploaded content!";
+        break;
 
-    case "new_document":
-      aiResponseContent =
-        "To upload a new document, use the upload button in the sidebar. Once uploaded, I'll process it and we can generate a new quiz from it. Your current session will remain available in the history.";
-      break;
-
-    case "platform_question":
-      aiResponseContent = `I can help you with:
-            
-- **Upload documents** - PDF files containing study material
-- **Generate quizzes** - Customizable difficulty and question count
-- **Ask questions** - About your document's content
-- **Take quizzes** - Test your knowledge
-- **Share quizzes** - Create rooms for others to take your quiz
-
-What would you like to do?`;
-      break;
-
-    case "out_of_scope":
-      aiResponseContent =
-        "I'm specialized in helping you create and take quizzes from your documents. I can't help with that request, but I'd be happy to help you generate a quiz or answer questions about your uploaded content!";
-      break;
-
-    case "content_question":
-    default:
-      if (sourceIds.length === 0) {
-        aiResponseContent =
-          "Please upload a document first so I can answer questions about its content.";
-      } else {
-        const recentMessages = await db
-          .select()
-          .from(chatMessagesTable)
-          .where(eq(chatMessagesTable.sessionId, sessionId))
-          .orderBy(asc(chatMessagesTable.createdAt))
-          .limit(10);
-
-        const chatHistory = recentMessages
-          .filter((msg) => msg.type === "text")
-          .map((msg) => {
-            const content = msg.content as { text?: string };
-            return `${msg.role}: ${content.text || ""}`;
-          })
-          .join("\n");
-
-        aiResponseContent = await getRAGChatResponse(
-          c.env,
-          content,
-          sourceIds,
-          session.user.id,
-          chatHistory
-        );
-      }
-      break;
+      default:
+        aiResponseContent = "I'm not sure how to help with that. Could you try rephrasing?";
+    }
   }
 
+  // Save AI response
   const aiMessage = await db
     .insert(chatMessagesTable)
     .values({
       sessionId,
       role: "assistant",
-      type: "text",
+      type: aiResponseType,
       content: { text: aiResponseContent },
     })
     .returning()

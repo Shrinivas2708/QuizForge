@@ -98,8 +98,12 @@ export function PromptInputAttachment({
           width={56}
         />
       ) : (
-        <div className="flex size-full items-center justify-center text-muted-foreground">
+        <div className=" h-full">
+          <div className="flex size-full items-center justify-center text-muted-foreground flex-col">
           <PaperclipIcon className="size-4" />
+          
+        </div>
+        <p className=" whitespace-nowrap mb-2 text-xs = ">{data.filename}</p>
         </div>
       )}
       <Button
@@ -540,7 +544,7 @@ export const PromptInputTextarea = ({
     <Textarea
       className={cn(
         "w-full resize-none rounded-none border-none p-3 shadow-none outline-none ring-0",
-        "field-sizing-content bg-transparent dark:bg-transparent",
+        "field-sizing-content bg-transparent dark:bg-transparent text-2xl",
         "max-h-48 min-h-16",
         "focus-visible:ring-0",
         className

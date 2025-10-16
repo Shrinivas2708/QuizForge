@@ -8,6 +8,8 @@ import {
   PromptInputActionMenu,
   PromptInputActionMenuContent,
   PromptInputActionMenuTrigger,
+  PromptInputAttachment,
+  PromptInputAttachments,
   PromptInputBody,
   PromptInputSubmit,
   PromptInputTextarea,
@@ -93,7 +95,7 @@ function ChatComponent() {
   const sendMessageMutation = useSendMessage();
 
  
-
+const showProcessing = latestSource && sourceStatus?.status === "processing";
   const renderMessage = (message: ChatMessage) => {
     switch (message.type) {
       case "text": {
@@ -101,7 +103,7 @@ function ChatComponent() {
         return (
           <Message from={message.role} key={message.id}>
             {message.role === "assistant" && (
-              <MessageAvatar name="AI" icon={<BotIcon />} />
+              showProcessing ? <MessageAvatar  name="AI" icon={<BotIcon />} className=" animate-pulse"/>:<MessageAvatar name="AI" icon={<BotIcon />} />
             )}
             <MessageContent>
               <Response>{content.text}</Response>
@@ -174,7 +176,7 @@ function ChatComponent() {
     }
   };
 
-  const showProcessing = latestSource && sourceStatus?.status === "processing";
+  
 
   return (
     <div className="scrollbar flex h-full flex-col" ref={chatRef}>
@@ -233,14 +235,14 @@ function ChatComponent() {
                 });
             } else if (message.text) {
               // Ensure the controlled input matches the submitted text
-              setCurrentMessage(message.text);
+              setCurrentMessage("");
               // Use per-mutation callbacks so we only clear the input on success
               sendMessageMutation.mutate(
                 { chatId, content: message.text },
                 {
                   onSuccess: () => setCurrentMessage(""),
                   onError: () => {
-                    // keep the user's text in the input so they can retry/edit
+                    setCurrentMessage(message.text!);
                   },
                 },
               );
@@ -256,6 +258,9 @@ function ChatComponent() {
           className="mx-auto max-w-3xl"
         >
           <PromptInputBody>
+            <PromptInputAttachments>
+                        {(attachment) => <PromptInputAttachment data={attachment} />}
+                      </PromptInputAttachments>
             <PromptInputTextarea
               placeholder="Ask a question or attach a PDF document..."
               disabled={sendMessageMutation.isPending || showProcessing}
