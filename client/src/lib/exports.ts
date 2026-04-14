@@ -8,4 +8,4 @@ export const ROOMS_URL: string =
     ? "http://localhost:5173" 
     : "https://room.quizforge.shriii.xyz"
 
-export const sidebarRoutes = ['/new','/chat','/quiz']
+export const sidebarRoutes = ['/new','/chat','/quiz'] 
