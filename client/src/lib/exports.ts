@@ -6,6 +6,6 @@ export const SERVER_URL: string =
 export const ROOMS_URL: string = 
   import.meta.env.VITE_ENV === 'dev' 
     ? "http://localhost:5173" 
-    : "https://room.quizforge.shriii.xyz"
+    : "https://room.quizforge.shribuilds.in"
 
 export const sidebarRoutes = ['/new','/chat','/quiz'] 
