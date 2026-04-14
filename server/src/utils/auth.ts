@@ -183,7 +183,7 @@ export const createAuth = (env: EnvBindings, db: DbInstance) => {
       "http://127.0.0.1:5173",
       "http://127.0.0.1:3000",
       "http://localhost:3000",
-      "https://quizforge.shriii.xyz",
+      "https://quizforge.shribuilds.in",
       "http://localhost:5173",
        "https://server.ssherikar2005.workers.dev"
     ],

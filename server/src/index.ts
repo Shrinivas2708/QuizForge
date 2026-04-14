@@ -164,8 +164,8 @@ app.use(
     origin: [
       "http://localhost:3000",
       "http://localhost:5173",
-      "https://quizforge.shriii.xyz",
-      "https://room.quizforge.shriii.xyz"
+      "https://quizforge.shribuilds.in",
+      "https://room.quizforge.shribuilds.in"
     ],
     credentials: true,
   })
