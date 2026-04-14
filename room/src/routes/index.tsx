@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 const URL =  import.meta.env.VITE_ENV === "dev"
     ? "http://localhost:3000"
-    : "https://quizforge.shriii.xyz";
+    : "https://quizforge.shribuilds.in/";
 
 export const Route = createFileRoute('/')({
   beforeLoad:()=>{
